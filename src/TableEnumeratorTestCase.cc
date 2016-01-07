@@ -20,7 +20,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <string>
 
 #include "ClusterMetrics.h"
 #include "Context.h"
@@ -43,9 +42,8 @@ try
 {
     int clientIndex;
     int numClients;
-    
     string tableName;
-    string imageFileName;
+    int numObjects;
 
     // Set line buffering for stdout so that printf's and log messages
     // interleave properly.
@@ -54,7 +52,7 @@ try
     // need external context to set log levels with OptionParser
     Context context(false);
 
-    OptionsDescription clientOptions("Client");
+    OptionsDescription clientOptions("TableEnumeratorTestCase");
     clientOptions.add_options()
 
         // These first two options are currently ignored. They're here so that
@@ -71,9 +69,9 @@ try
         ("tableName",
          ProgramOptions::value<string>(&tableName),
          "Name of the table to image.")
-        ("imageFile",
-         ProgramOptions::value<string>(&imageFileName),
-         "Name of the image file to create.");
+        ("numObjects",
+         ProgramOptions::value<int>(&numObjects),
+         "Number of objects to upload.");
     
     OptionParser optionParser(clientOptions, argc, argv);
     context.transportManager->setSessionTimeout(
@@ -89,16 +87,20 @@ try
     RamCloud client(&context, locator.c_str(),
             optionParser.options.getClusterName().c_str());
 
-    LOG(NOTICE, "Imaging table %s to file %s", tableName.c_str(), imageFileName.c_str());
-
-    std::ofstream imageFile;
-    imageFile.open(imageFileName.c_str(), std::ios::binary);
+    LOG(NOTICE, "Testing enumeration on table %s", tableName.c_str());
 
     uint64_t tableId;
-//    tableId = client.getTableId(tableName.c_str());
     tableId = client.createTable(tableName.c_str());
 
-    client.write(tableId, "hard", 4, "bob", 3);
+    long count = 0;
+    for(int i = 0; i < numObjects; i++ ) {
+      client.write(tableId, (char*)&i, sizeof(int), (char*)&i, sizeof(int));
+
+      count++;
+      if (count % 100000 == 0) {
+        LOG(NOTICE, "Wrote %d objects to table.", count);
+      }      
+    }
 
     TableEnumerator iter(client, tableId, false);
 
@@ -106,30 +108,20 @@ try
     const void* key = 0;
     uint32_t dataLength = 0;
     const void* data = 0;
-    
+
+    count = 0;    
     while (iter.hasNext()) {
-      iter.nextKeyAndData(&keyLength, &key, &dataLength, &data);
-      imageFile.write((char*) &keyLength, sizeof(uint32_t));
-      imageFile.write((char*) key, keyLength);
-      imageFile.write((char*) &dataLength, sizeof(uint32_t));
-      imageFile.write((char*) &data, dataLength);      
+      iter.next(&keyLength, &key);
+      
+      count++;
+      if (count % 100000 == 0) {
+        LOG(NOTICE, "Iterated over %d objects in table.", count);
+      }      
     }
 
-    imageFile.close();
+    client.dropTable(tableName.c_str());
 
-    LOG(NOTICE, "Attempting to read the image file");
-
-    std::ifstream inFile;
-    inFile.open(imageFileName.c_str(), std::ios::binary);
-
-    char buffer[sizeof(uint32_t)];
-    inFile.read(buffer, sizeof(buffer));
-    uint32_t length = *((uint32_t*) buffer);
-    LOG(NOTICE, "Found length %d", length);
-      
-    char keyBuffer[length];
-    inFile.read(keyBuffer, length);
-    LOG(NOTICE, "Read key: %s", keyBuffer);
+    LOG(NOTICE, "Test passed.");
 
     return 0;
 } catch (RAMCloud::ClientException& e) {

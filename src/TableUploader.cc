@@ -20,7 +20,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <string>
 
 #include "ClusterMetrics.h"
 #include "Context.h"
@@ -43,8 +42,8 @@ try
 {
     int clientIndex;
     int numClients;
-    
     string tableName;
+    int serverSpan;
     string imageFileName;
 
     // Set line buffering for stdout so that printf's and log messages
@@ -54,7 +53,7 @@ try
     // need external context to set log levels with OptionParser
     Context context(false);
 
-    OptionsDescription clientOptions("Client");
+    OptionsDescription clientOptions("TableUploader");
     clientOptions.add_options()
 
         // These first two options are currently ignored. They're here so that
@@ -71,6 +70,9 @@ try
         ("tableName",
          ProgramOptions::value<string>(&tableName),
          "Name of the table to image.")
+        ("serverSpan",
+         ProgramOptions::value<int>(&serverSpan),
+         "Server span for the table.")
         ("imageFile",
          ProgramOptions::value<string>(&imageFileName),
          "Name of the image file to create.");
@@ -89,47 +91,41 @@ try
     RamCloud client(&context, locator.c_str(),
             optionParser.options.getClusterName().c_str());
 
-    LOG(NOTICE, "Imaging table %s to file %s", tableName.c_str(), imageFileName.c_str());
-
-    std::ofstream imageFile;
-    imageFile.open(imageFileName.c_str(), std::ios::binary);
+    LOG(NOTICE, "Uploading table %s with server span %d from file %s", tableName.c_str(), serverSpan, imageFileName.c_str());
 
     uint64_t tableId;
-//    tableId = client.getTableId(tableName.c_str());
-    tableId = client.createTable(tableName.c_str());
-
-    client.write(tableId, "hard", 4, "bob", 3);
-
-    TableEnumerator iter(client, tableId, false);
-
-    uint32_t keyLength = 0;
-    const void* key = 0;
-    uint32_t dataLength = 0;
-    const void* data = 0;
-    
-    while (iter.hasNext()) {
-      iter.nextKeyAndData(&keyLength, &key, &dataLength, &data);
-      imageFile.write((char*) &keyLength, sizeof(uint32_t));
-      imageFile.write((char*) key, keyLength);
-      imageFile.write((char*) &dataLength, sizeof(uint32_t));
-      imageFile.write((char*) &data, dataLength);      
-    }
-
-    imageFile.close();
-
-    LOG(NOTICE, "Attempting to read the image file");
+    tableId = client.createTable(tableName.c_str(), serverSpan);
 
     std::ifstream inFile;
     inFile.open(imageFileName.c_str(), std::ios::binary);
 
-    char buffer[sizeof(uint32_t)];
-    inFile.read(buffer, sizeof(buffer));
-    uint32_t length = *((uint32_t*) buffer);
-    LOG(NOTICE, "Found length %d", length);
-      
-    char keyBuffer[length];
-    inFile.read(keyBuffer, length);
-    LOG(NOTICE, "Read key: %s", keyBuffer);
+    int objCount = 0;
+    int byteCount = 0;
+    char lenBuffer[sizeof(uint32_t)];
+    while(inFile.read(lenBuffer, sizeof(lenBuffer))) {
+        uint32_t keyLength = *((uint32_t*) lenBuffer); 
+        char keyBuffer[keyLength];
+        inFile.read(keyBuffer, keyLength);
+        string key(keyBuffer, keyLength);
+
+        inFile.read(lenBuffer, sizeof(lenBuffer));
+        uint32_t dataLength = *((uint32_t*) lenBuffer);
+        char dataBuffer[dataLength];
+        inFile.read(dataBuffer, dataLength);
+        string data(dataBuffer, dataLength);
+
+//        LOG(NOTICE, "[%s, %s]", key.c_str(), data.c_str());
+
+        objCount++;
+        byteCount += keyLength + dataLength;
+        if (objCount % 100000 == 0) {
+          LOG(NOTICE, "Uploaded %d objects totalling %d bytes.", objCount, byteCount);
+        }
+    }
+
+    inFile.close();
+
+    LOG(NOTICE, "Table uploaded.");
 
     return 0;
 } catch (RAMCloud::ClientException& e) {

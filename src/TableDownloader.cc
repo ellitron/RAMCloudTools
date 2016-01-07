@@ -20,7 +20,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <string>
 
 #include "ClusterMetrics.h"
 #include "Context.h"
@@ -43,7 +42,6 @@ try
 {
     int clientIndex;
     int numClients;
-    
     string tableName;
     string imageFileName;
 
@@ -54,7 +52,7 @@ try
     // need external context to set log levels with OptionParser
     Context context(false);
 
-    OptionsDescription clientOptions("Client");
+    OptionsDescription clientOptions("TableDownloader");
     clientOptions.add_options()
 
         // These first two options are currently ignored. They're here so that
@@ -89,16 +87,13 @@ try
     RamCloud client(&context, locator.c_str(),
             optionParser.options.getClusterName().c_str());
 
-    LOG(NOTICE, "Imaging table %s to file %s", tableName.c_str(), imageFileName.c_str());
+    LOG(NOTICE, "Downloading table %s to file %s", tableName.c_str(), imageFileName.c_str());
 
     std::ofstream imageFile;
     imageFile.open(imageFileName.c_str(), std::ios::binary);
 
     uint64_t tableId;
-//    tableId = client.getTableId(tableName.c_str());
-    tableId = client.createTable(tableName.c_str());
-
-    client.write(tableId, "hard", 4, "bob", 3);
+    tableId = client.getTableId(tableName.c_str());
 
     TableEnumerator iter(client, tableId, false);
 
@@ -106,30 +101,37 @@ try
     const void* key = 0;
     uint32_t dataLength = 0;
     const void* data = 0;
-    
-    while (iter.hasNext()) {
+
+    long objCount = 0;    
+    long byteCount = 0;
+    while (true) {
+      if (objCount > 1220940)
+        LOG(NOTICE, "%d ", objCount);
+      if (!iter.hasNext())
+        break;
+      if (objCount > 1220940)
+        LOG(NOTICE, "%d ", objCount);
+
       iter.nextKeyAndData(&keyLength, &key, &dataLength, &data);
+      if (objCount > 1220940)
+        LOG(NOTICE, "%d ", objCount);
       imageFile.write((char*) &keyLength, sizeof(uint32_t));
       imageFile.write((char*) key, keyLength);
       imageFile.write((char*) &dataLength, sizeof(uint32_t));
-      imageFile.write((char*) &data, dataLength);      
+      imageFile.write((char*) data, dataLength);
+      if (objCount > 1220940)
+        LOG(NOTICE, "%d \n", objCount);
+              
+      objCount++;
+      byteCount += keyLength + dataLength;
+      if (objCount % 100000 == 0) {
+        LOG(NOTICE, "Downloaded %d objects totalling %d bytes.", objCount, byteCount);
+      }      
     }
-
+    LOG(NOTICE, "writing out file...");    
     imageFile.close();
 
-    LOG(NOTICE, "Attempting to read the image file");
-
-    std::ifstream inFile;
-    inFile.open(imageFileName.c_str(), std::ios::binary);
-
-    char buffer[sizeof(uint32_t)];
-    inFile.read(buffer, sizeof(buffer));
-    uint32_t length = *((uint32_t*) buffer);
-    LOG(NOTICE, "Found length %d", length);
-      
-    char keyBuffer[length];
-    inFile.read(keyBuffer, length);
-    LOG(NOTICE, "Read key: %s", keyBuffer);
+    LOG(NOTICE, "Table downloaded.");
 
     return 0;
 } catch (RAMCloud::ClientException& e) {
