@@ -104,6 +104,7 @@ try
 
     long objCount = 0;    
     long byteCount = 0;
+    uint64_t startTime = Cycles::rdtsc();
     while (true) {
       if (!iter.hasNext())
         break;
@@ -117,13 +118,14 @@ try
       objCount++;
       byteCount += keyLength + dataLength;
       if (objCount % 100000 == 0) {
-        LOG(NOTICE, "Downloaded %d objects totalling %d bytes.", objCount, byteCount);
+        LOG(NOTICE, "Status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
       }      
     }
+    uint64_t endTime = Cycles::rdtsc();
     LOG(NOTICE, "Closing file...");    
     imageFile.close();
 
-    LOG(NOTICE, "Table downloaded.");
+    LOG(NOTICE, "Table downloaded (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(endTime - startTime));
 
     return 0;
 } catch (RAMCloud::ClientException& e) {
