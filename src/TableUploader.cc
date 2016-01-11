@@ -102,30 +102,31 @@ try
     int objCount = 0;
     int byteCount = 0;
     char lenBuffer[sizeof(uint32_t)];
+    uint64_t startTime = Cycles::rdtsc();
     while(inFile.read(lenBuffer, sizeof(lenBuffer))) {
         uint32_t keyLength = *((uint32_t*) lenBuffer); 
         char keyBuffer[keyLength];
         inFile.read(keyBuffer, keyLength);
-        string key(keyBuffer, keyLength);
 
         inFile.read(lenBuffer, sizeof(lenBuffer));
         uint32_t dataLength = *((uint32_t*) lenBuffer);
         char dataBuffer[dataLength];
         inFile.read(dataBuffer, dataLength);
-        string data(dataBuffer, dataLength);
 
-//        LOG(NOTICE, "[%s, %s]", key.c_str(), data.c_str());
+        client.write(tableId, (const void*) keyBuffer, keyLength, 
+                              (const void*) dataBuffer, dataLength);
 
         objCount++;
         byteCount += keyLength + dataLength;
         if (objCount % 100000 == 0) {
-          LOG(NOTICE, "Uploaded %d objects totalling %d bytes.", objCount, byteCount);
+          LOG(NOTICE, "Status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
         }
     }
+    uint64_t endTime = Cycles::rdtsc();
 
     inFile.close();
 
-    LOG(NOTICE, "Table uploaded.");
+    LOG(NOTICE, "Table uploaded (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(endTime - startTime));
 
     return 0;
 } catch (RAMCloud::ClientException& e) {
