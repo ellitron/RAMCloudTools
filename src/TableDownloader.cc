@@ -105,22 +105,14 @@ try
     long objCount = 0;    
     long byteCount = 0;
     while (true) {
-      if (objCount > 1220940)
-        LOG(NOTICE, "%d ", objCount);
       if (!iter.hasNext())
         break;
-      if (objCount > 1220940)
-        LOG(NOTICE, "%d ", objCount);
 
       iter.nextKeyAndData(&keyLength, &key, &dataLength, &data);
-      if (objCount > 1220940)
-        LOG(NOTICE, "%d ", objCount);
       imageFile.write((char*) &keyLength, sizeof(uint32_t));
       imageFile.write((char*) key, keyLength);
       imageFile.write((char*) &dataLength, sizeof(uint32_t));
       imageFile.write((char*) data, dataLength);
-      if (objCount > 1220940)
-        LOG(NOTICE, "%d \n", objCount);
               
       objCount++;
       byteCount += keyLength + dataLength;
@@ -128,7 +120,7 @@ try
         LOG(NOTICE, "Downloaded %d objects totalling %d bytes.", objCount, byteCount);
       }      
     }
-    LOG(NOTICE, "writing out file...");    
+    LOG(NOTICE, "Closing file...");    
     imageFile.close();
 
     LOG(NOTICE, "Table downloaded.");
