@@ -100,35 +100,36 @@ try
     uint64_t tableId;
     tableId = client.createTable(tableName.c_str(), serverSpan);
 
-    long count = 0;
     long byteCount = 0;
     char buf[size];
+    uint64_t startTime = Cycles::rdtsc();
     for(int i = 0; i < numObjects; i++ ) {
       client.write(tableId, (char*)&i, sizeof(int), buf, size);
 
-      count++;
       byteCount += sizeof(i) + size;
-      if (count % 100000 == 0) {
-        LOG(NOTICE, "Wrote %d objects totalling %d bytes.", count, byteCount);
+      if (i % 100000 == 0) {
+        LOG(NOTICE, "Upload status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", i, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
       }      
     }
+    LOG(NOTICE, "Upload phase finished.");
 
     TableEnumerator iter(client, tableId, false);
 
+    uint32_t count = 0;    
+    byteCount = 0;
     uint32_t len = 0;
     const void* object = 0;
-
-    count = 0;    
-    byteCount = 0;
+    startTime = Cycles::rdtsc();
     while (iter.hasNext()) {
       iter.next(&len, &object);
       
       count++;
       byteCount += len;
       if (count % 100000 == 0) {
-        LOG(NOTICE, "Iterated over %d objects totalling %d bytes.", count, byteCount);
+        LOG(NOTICE, "Enumeration status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", count, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
       }      
     }
+    LOG(NOTICE, "Enumeration phase finished.");
 
     client.dropTable(tableName.c_str());
 
