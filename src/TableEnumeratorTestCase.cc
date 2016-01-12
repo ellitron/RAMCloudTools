@@ -111,7 +111,7 @@ try
         LOG(NOTICE, "Upload status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", i, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
       }      
     }
-    LOG(NOTICE, "Upload phase finished.");
+    LOG(NOTICE, "Upload finished (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", numObjects, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
 
     TableEnumerator iter(client, tableId, false);
 
@@ -129,7 +129,7 @@ try
         LOG(NOTICE, "Enumeration status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", count, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
       }      
     }
-    LOG(NOTICE, "Enumeration phase finished.");
+    LOG(NOTICE, "Enumeration finished (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", count, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
 
     client.dropTable(tableName.c_str());
 
