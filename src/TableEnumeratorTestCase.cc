@@ -43,7 +43,9 @@ try
     int clientIndex;
     int numClients;
     string tableName;
+    int serverSpan;
     int numObjects;
+    int size;
 
     // Set line buffering for stdout so that printf's and log messages
     // interleave properly.
@@ -69,9 +71,15 @@ try
         ("tableName",
          ProgramOptions::value<string>(&tableName),
          "Name of the table to image.")
+        ("serverSpan",
+         ProgramOptions::value<int>(&serverSpan),
+         "Server span for the table.")
         ("numObjects",
          ProgramOptions::value<int>(&numObjects),
-         "Number of objects to upload.");
+         "Number of objects to upload.")
+        ("size",
+         ProgramOptions::value<int>(&size),
+         "Size of objects to upload.");
     
     OptionParser optionParser(clientOptions, argc, argv);
     context.transportManager->setSessionTimeout(
@@ -87,35 +95,38 @@ try
     RamCloud client(&context, locator.c_str(),
             optionParser.options.getClusterName().c_str());
 
-    LOG(NOTICE, "Testing enumeration on table %s", tableName.c_str());
+    LOG(NOTICE, "Testing enumeration on table %s with server span %d", tableName.c_str(), serverSpan);
 
     uint64_t tableId;
-    tableId = client.createTable(tableName.c_str());
+    tableId = client.createTable(tableName.c_str(), serverSpan);
 
     long count = 0;
+    long byteCount = 0;
+    char buf[size];
     for(int i = 0; i < numObjects; i++ ) {
-      client.write(tableId, (char*)&i, sizeof(int), (char*)&i, sizeof(int));
+      client.write(tableId, (char*)&i, sizeof(int), buf, size);
 
       count++;
+      byteCount += sizeof(i) + size;
       if (count % 100000 == 0) {
-        LOG(NOTICE, "Wrote %d objects to table.", count);
+        LOG(NOTICE, "Wrote %d objects totalling %d bytes.", count, byteCount);
       }      
     }
 
     TableEnumerator iter(client, tableId, false);
 
-    uint32_t keyLength = 0;
-    const void* key = 0;
-    uint32_t dataLength = 0;
-    const void* data = 0;
+    uint32_t len = 0;
+    const void* object = 0;
 
     count = 0;    
+    byteCount = 0;
     while (iter.hasNext()) {
-      iter.next(&keyLength, &key);
+      iter.next(&len, &object);
       
       count++;
+      byteCount += len;
       if (count % 100000 == 0) {
-        LOG(NOTICE, "Iterated over %d objects in table.", count);
+        LOG(NOTICE, "Iterated over %d objects totalling %d bytes.", count, byteCount);
       }      
     }
 
