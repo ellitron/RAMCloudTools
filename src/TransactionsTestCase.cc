@@ -70,16 +70,16 @@ try
 
         ("tableName",
          ProgramOptions::value<string>(&tableName),
-         "Name of the table to image.")
+         "Name of the table to perform transaction against.")
         ("serverSpan",
          ProgramOptions::value<int>(&serverSpan),
          "Server span for the table.")
         ("numObjects",
          ProgramOptions::value<int>(&numObjects),
-         "Number of objects to upload.")
+         "Number of objects to write in the transaction.")
         ("size",
          ProgramOptions::value<int>(&size),
-         "Size of objects to upload.");
+         "Size of objects to write in the transaction.");
     
     OptionParser optionParser(clientOptions, argc, argv);
     context.transportManager->setSessionTimeout(
