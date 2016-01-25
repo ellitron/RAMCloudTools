@@ -69,7 +69,7 @@ try
 
         ("op",
          ProgramOptions::value<string>(&op),
-         "Name of the operation to time.")
+         "Name of the operation to time. Value can be one of: read, readnoexist, txread, txreadnoexist, txreadnoexistcache.")
         ("count",
          ProgramOptions::value<int>(&count),
          "Number of times to execute the operation.");
