@@ -70,25 +70,31 @@ public class TimeOp
               client.write(tableId, key, value, null);
             }
 
+            int exceptionCount = 0;
             for (int i = 0; i < Integer.decode((String)opts.get("--count")); i++) {
               if ((Boolean)opts.get("--tx")) {              
                 RAMCloudTransaction tx = new RAMCloudTransaction(client);
 
                 long startTime = System.nanoTime();
-                tx.read(tableId, key);
+                try {
+                  tx.read(tableId, key);
+                } catch (ClientException ex) {
+                  exceptionCount++;
+                }
                 long endTime = System.nanoTime();
             
-                System.out.println(String.format("Time: %dus", (endTime - startTime)/1000l));
+                System.out.println(String.format("Time: %dus (%d exceptions caught)", (endTime - startTime)/1000l, exceptionCount));
                 tx.commitAndSync();
               } else {
                 long startTime = System.nanoTime();
                 try { 
                   client.read(tableId, key);
                 } catch (ObjectDoesntExistException ex) {
+                  exceptionCount++;
                 }
                 long endTime = System.nanoTime();                
 
-                System.out.println(String.format("Time: %dus", (endTime - startTime)/1000l));
+                System.out.println(String.format("Time: %dus (%d exceptions caught)", (endTime - startTime)/1000l, exceptionCount));
               }
             }
 
