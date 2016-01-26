@@ -1,6 +1,9 @@
 package org.ellitron.ramcloudtools;
 
-import edu.stanford.ramcloud.RAMCloud;
+import edu.stanford.ramcloud.*;
+import edu.stanford.ramcloud.ClientException.*;
+import edu.stanford.ramcloud.transactions.*;
+
 import org.apache.log4j.Logger;
 
 import java.util.Map;
@@ -17,15 +20,17 @@ public class TimeOp
     "TimeOp.\n"
     + "\n"
     + "Usage:\n"
-    + "  TimeOp -C <coordinatorLocator> read\n"
-    + "  TimeOp -C <coordinatorLocator> write\n"
+    + "  TimeOp -C COORDINATORLOCATOR [--count=<ops>] [--tx] [--noexist] read\n"
     + "  TimeOp (-h | --help)\n"
     + "  TimeOp --version\n"
     + "\n"
     + "Options:\n"
-    + "  -C            RAMCloud coordinator's locator string.\n"
-    + "  -h --help     Show this screen.\n"
-    + "  --version     Show version.\n"
+    + "  -C             RAMCloud coordinator's locator string.\n"
+    + "  --count=<ops>  Number of times to perform the op [default: 3].\n"
+    + "  --tx           Perform the operation in a transaction context.\n"
+    + "  --noexist      Perform the operation on a nonexistant object.\n"
+    + "  -h --help      Show this screen.\n"
+    + "  --version      Show version.\n"
     + "\n";
     
 //    private static final String navalfate =
@@ -54,9 +59,40 @@ public class TimeOp
         System.out.println(opts);
         
         if ((Boolean)opts.get("read")) {
-            RAMCloud client = new RAMCloud((String)opts.get("-C"));
-        } else if ((Boolean)opts.get("write")) {
-            System.out.println("command is write");
-        }
+            RAMCloud client = new RAMCloud((String)opts.get("COORDINATORLOCATOR"));
+            
+            long tableId = client.createTable("test");
+
+            byte[] key = new byte[32];
+            byte[] value = new byte[100];
+
+            if (!(Boolean)opts.get("--noexist")) {
+              client.write(tableId, key, value, null);
+            }
+
+            for (int i = 0; i < Integer.decode((String)opts.get("--count")); i++) {
+              if ((Boolean)opts.get("--tx")) {              
+                RAMCloudTransaction tx = new RAMCloudTransaction(client);
+
+                long startTime = System.nanoTime();
+                tx.read(tableId, key);
+                long endTime = System.nanoTime();
+            
+                System.out.println(String.format("Time: %dus", (endTime - startTime)/1000l));
+                tx.commitAndSync();
+              } else {
+                long startTime = System.nanoTime();
+                try { 
+                  client.read(tableId, key);
+                } catch (ObjectDoesntExistException ex) {
+                }
+                long endTime = System.nanoTime();                
+
+                System.out.println(String.format("Time: %dus", (endTime - startTime)/1000l));
+              }
+            }
+
+            client.dropTable("test");
+        } 
     }
 }
