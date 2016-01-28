@@ -99,6 +99,13 @@ try
     std::ifstream inFile;
     inFile.open(imageFileName.c_str(), std::ios::binary);
 
+    int MULTIWRITE_REQ_MAX=32;
+    Tub<MultiWriteObject> objects[MULTIWRITE_REQ_MAX];
+    MultiWriteObject* requests[MULTIWRITE_REQ_MAX];
+    
+    std::vector<std::string> keys(MULTIWRITE_REQ_MAX);
+    std::vector<std::string> values(MULTIWRITE_REQ_MAX);
+
     int objCount = 0;
     int byteCount = 0;
     char lenBuffer[sizeof(uint32_t)];
@@ -107,20 +114,55 @@ try
         uint32_t keyLength = *((uint32_t*) lenBuffer); 
         char keyBuffer[keyLength];
         inFile.read(keyBuffer, keyLength);
-
+        keys.emplace_back((const char*)keyBuffer, keyLength);
+        
         inFile.read(lenBuffer, sizeof(lenBuffer));
         uint32_t dataLength = *((uint32_t*) lenBuffer);
         char dataBuffer[dataLength];
         inFile.read(dataBuffer, dataLength);
+        values.emplace_back((const char*)dataBuffer, dataLength);
 
-        client.write(tableId, (const void*) keyBuffer, keyLength, 
-                              (const void*) dataBuffer, dataLength);
+//        client.write(tableId, (const void*) keyBuffer, keyLength, 
+//                              (const void*) dataBuffer, dataLength);
+
+        int req_index = objCount % MULTIWRITE_REQ_MAX;
+        objects[req_index].construct( tableId,
+                                      (const void*) keys.back().data(),
+                                      keyLength,
+                                      (const void*) values.back().data(),
+                                      dataLength );
+        requests[req_index] = objects[req_index].get();
 
         objCount++;
+
+        if (objCount % MULTIWRITE_REQ_MAX == 0) {
+          try {
+            client.multiWrite(requests, MULTIWRITE_REQ_MAX);
+          } catch(RAMCloud::ClientException& e) {
+            fprintf(stderr, "RAMCloud exception: %s\n", e.str().c_str());
+            return 1;
+          }
+
+          keys.clear();
+          values.clear();
+        }
+
         byteCount += keyLength + dataLength;
         if (objCount % 100000 == 0) {
           LOG(NOTICE, "Status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
         }
+    }
+
+    if (objCount % MULTIWRITE_REQ_MAX != 0) {
+      try {
+        client.multiWrite(requests, objCount % MULTIWRITE_REQ_MAX);
+      } catch(RAMCloud::ClientException& e) {
+        fprintf(stderr, "RAMCloud exception: %s\n", e.str().c_str());
+        return 1;
+      }
+
+      keys.clear();
+      values.clear();
     }
     uint64_t endTime = Cycles::rdtsc();
 
