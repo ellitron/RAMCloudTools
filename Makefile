@@ -7,7 +7,8 @@ TARGETS :=  TableDownloader \
             TableEnumeratorTestCase \
             TransactionsTestCase \
             GetStats \
-						GetMetrics
+						GetMetrics \
+						rcstat
 
 all: $(TARGETS)
 
