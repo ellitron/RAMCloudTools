@@ -85,7 +85,7 @@ try
 
     ProtoBuf::ServerStatistics serverStats;
     client.getServerStatistics(serverLocator.c_str(), serverStats);
-    LOG(NOTICE, "ServerStatistics: %s\n", serverStats.ShortDebugString().c_str());
+    printf("ServerStatistics: %s\n", serverStats.ShortDebugString().c_str());
 
     return 0;
 } catch (RAMCloud::ClientException& e) {

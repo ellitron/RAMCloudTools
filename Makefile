@@ -6,7 +6,8 @@ TARGETS :=  TableDownloader \
             TimeOp \
             TableEnumeratorTestCase \
             TransactionsTestCase \
-            GetStats
+            GetStats \
+						GetMetrics
 
 all: $(TARGETS)
 
