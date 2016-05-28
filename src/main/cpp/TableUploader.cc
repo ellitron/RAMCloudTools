@@ -88,7 +88,7 @@ struct ThreadStats {
  *      What columns of information to output to the screen.
  */
 void statsReporterThread(struct ThreadStats *threadStats, int numThreads, 
-    int reportInterval, string formatString) {
+    int reportInterval, std::string formatString) {
 
   int colWidth = 10;
   const char *colFormatStr = "%10s";
@@ -204,11 +204,13 @@ void statsReporterThread(struct ThreadStats *threadStats, int numThreads,
     }
 
     if (formatString.find("B") != std::string::npos) {
-      printf(colFormatStr, std::to_string(totalCurrWriteRate).c_str());
+      printf(colFormatStr, 
+          std::to_string(totalCurrWriteRate / 1000000l).c_str());
     }
 
     if (formatString.find("D") != std::string::npos) {
-      printf(colFormatStr, std::to_string(totalCurrReadRate).c_str());
+      printf(colFormatStr, 
+          std::to_string(totalCurrReadRate / 1000000l).c_str());
     }
 
     if (formatString.find("T") != std::string::npos) {
@@ -216,6 +218,10 @@ void statsReporterThread(struct ThreadStats *threadStats, int numThreads,
     }
 
     printf("\n");
+
+    // Capture the current stats as last seen stats.
+    memcpy(lastThreadStats, threadStats, 
+        numThreads*sizeof(struct ThreadStats));
 
     if (totalFilesLoaded == totalFilesToLoad) {
       break;
@@ -242,7 +248,7 @@ void statsReporterThread(struct ThreadStats *threadStats, int numThreads,
  *      The size of multiwrites to use.
  */
 void loaderThread(RamCloud *client, uint64_t tableId, 
-    std::vector<string> fileList, int startIndex, int length, 
+    std::vector<std::string> fileList, int startIndex, int length, 
     int multiwriteSize, struct ThreadStats *stats) {
  
   stats->totalFilesToLoad = length;
@@ -257,8 +263,8 @@ void loaderThread(RamCloud *client, uint64_t tableId,
     Tub<MultiWriteObject> objects[multiwriteSize];
     MultiWriteObject* requests[multiwriteSize];
     
-    std::vector<std::string> keys(multiwriteSize);
-    std::vector<std::string> values(multiwriteSize);
+    std::vector<std::string> keys;
+    std::vector<std::string> values;
 
     char lenBuffer[sizeof(uint32_t)];
     while(inFile.read(lenBuffer, sizeof(lenBuffer))) {
@@ -329,21 +335,18 @@ try
 {
   int clientIndex;
   int numClients;
-  string tableName;
+  std::string tableName;
   int serverSpan;
-  string imageFileName;
+  std::string imageFileName;
   int numThreads;
-  string splitSuffixFormat;
+  std::string splitSuffixFormat;
   int multiwriteSize;
   int reportInterval;
-  string reportFormat;
+  std::string reportFormat;
 
   // Set line buffering for stdout so that printf's and log messages
   // interleave properly.
   setvbuf(stdout, NULL, _IOLBF, 1024);
-
-  // Need external context to set log levels with OptionParser
-  Context context(false);
 
   OptionsDescription clientOptions("TableUploader");
   clientOptions.add_options()
@@ -358,14 +361,14 @@ try
      "Total number of clients running [default: 1].")
 
     ("tableName",
-     ProgramOptions::value<string>(&tableName),
+     ProgramOptions::value<std::string>(&tableName),
      "What to name the uploaded table in RAMCloud.")
     ("serverSpan",
      ProgramOptions::value<int>(&serverSpan)->
          default_value(1),
      "Server span for the new table [default: 1].")
     ("imageFile",
-     ProgramOptions::value<string>(&imageFileName),
+     ProgramOptions::value<std::string>(&imageFileName),
      "Name of the image file to upload.")
     ("numThreads",
      ProgramOptions::value<int>(&numThreads)->
@@ -373,7 +376,7 @@ try
      "Number of threads to use for uploading partitions in parallel. Only "
      "useful when image file has been partitioned. [default: 1]")
     ("splitSuffixFormat",
-     ProgramOptions::value<string>(&splitSuffixFormat)->
+     ProgramOptions::value<std::string>(&splitSuffixFormat)->
          default_value(""),
      "Format string for partition suffixes. The setting of this option "
      "implies the existence of partitions. Must contain exactly one %d.")
@@ -386,7 +389,7 @@ try
          default_value(2),
      "Number of seconds between reporting status to the screen. [default: 2].")
     ("reportFormat",
-     ProgramOptions::value<string>(&reportFormat)->
+     ProgramOptions::value<std::string>(&reportFormat)->
          default_value("OFBDT"),
      "Format options for status report output.\n"
      "  O - Total objects uploaded per second.\n"
@@ -409,21 +412,17 @@ try
       imageFileName.c_str(), splitSuffixFormat.c_str(), multiwriteSize, 
       reportInterval, reportFormat.c_str());
 
-  // Setup RAMCloud related stuff.
-  context.transportManager->setSessionTimeout(
-      optionParser.options.getSessionTimeout());
-  string locator = optionParser.options.getExternalStorageLocator();
+  std::string locator = optionParser.options.getExternalStorageLocator();
   if (locator.size() == 0) {
     locator = optionParser.options.getCoordinatorLocator();
   }
 
-  RamCloud client(&context, locator.c_str(), 
-      optionParser.options.getClusterName().c_str());
+  RamCloud client(locator.c_str());
   uint64_t tableId;
   tableId = client.createTable(tableName.c_str(), serverSpan);
 
   // Compile a list of all the files for this image file.
-  std::vector<string> fileList;  
+  std::vector<std::string> fileList;  
   if (splitSuffixFormat.length() != 0) {
     for (int i = 0;; i++) {
       char *outFileName;
@@ -486,13 +485,14 @@ try
 
     threadLoadOffset += loadOffset;
 
-    clients[i] = new RamCloud(&context, locator.c_str(), 
-        optionParser.options.getClusterName().c_str());
+    clients[i] = new RamCloud(locator.c_str());
 
     threads.emplace_back(loaderThread, clients[i], tableId, fileList, 
         threadLoadOffset, threadLoadSize, multiwriteSize, &tStats[i]);
   }
 
+  // Give the threads some time to initialize their statistics. Otherwise the
+  // stats thread will find that totalFileLoaded == totalFilesToLoad and exit.
   sleep(1);
 
   // Start statistics reporting thread.
