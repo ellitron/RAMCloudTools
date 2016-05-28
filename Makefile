@@ -8,12 +8,13 @@ TARGETS :=  TableDownloader \
             TransactionsTestCase \
             GetStats \
 						GetMetrics \
-						rcstat
+						rcstat \
+						TableImageSplitter
 
 all: $(TARGETS)
 
 %: src/main/cpp/%.cc
-	g++ -o $@ $^ $(RAMCLOUD_OBJ_DIR)/OptionParser.o -std=c++0x -I$(RAMCLOUD_DIR)/src -I$(RAMCLOUD_OBJ_DIR) -L$(RAMCLOUD_OBJ_DIR) -lramcloud -lpcrecpp -lboost_program_options -lprotobuf -lrt -lboost_filesystem -lboost_system -lpthread -lssl -lcrypto 
+	g++ -o $@ $^ $(RAMCLOUD_OBJ_DIR)/OptionParser.o -g -std=c++0x -I$(RAMCLOUD_DIR)/src -I$(RAMCLOUD_OBJ_DIR) -L$(RAMCLOUD_OBJ_DIR) -lramcloud -lpcrecpp -lboost_program_options -lprotobuf -lrt -lboost_filesystem -lboost_system -lpthread -lssl -lcrypto 
 
 clean:
 	rm -f $(TARGETS)
