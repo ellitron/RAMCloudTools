@@ -18,6 +18,8 @@
 #include <getopt.h>
 #include <assert.h>
 
+#include <inttypes.h>
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -147,23 +149,19 @@ try
 
   // Parse the format option for the output columns.
   std::vector<std::string> columns; 
-  {
-    std::stringstream ss(format);
-    std::string col;
-    while (std::getline(ss, col, ',')) {
-      columns.push_back(col);
-    }
+  std::stringstream ss(format);
+  std::string col;
+  while (std::getline(ss, col, ',')) {
+    columns.push_back(col);
   }
 
   RamCloud client(locator.c_str());
-  
+
   std::vector<PerfStats> currStats;
-  {
-    Buffer statBuf;
-    client.serverControlAll(WireFormat::ControlOp::GET_PERF_STATS, NULL, 0, 
-        &statBuf);
-    parseStats(&statBuf, &currStats);
-  }
+  Buffer statBuf;
+  client.serverControlAll(WireFormat::ControlOp::GET_PERF_STATS, NULL, 0, 
+      &statBuf);
+  parseStats(&statBuf, &currStats);
 
   int colWidth = 12;
   const char *colFmtStr = "%12s";
@@ -171,7 +169,7 @@ try
   /*
    * Print column headers.
    */
-  for (int i = 0; i < currStats.size(); i++) {
+  for (size_t i = 0; i < currStats.size() - 1; i++) {
     /*
      * ro   - Per server number of objects read.
      * rob  - Per server number of bytes in objects read.
@@ -197,8 +195,6 @@ try
     if (contains(columns, "mf")) { printf(colFmtStr, "mf"); }
     if (contains(columns, "mfp")) { printf(colFmtStr, "mfp"); }
   }
-
-  printf("\n");
 
   /*
    * Ro   - Total number of objects read.
@@ -267,17 +263,17 @@ try
       uint64_t mf = c.logAppendableBytes;
       uint64_t mfp = (100 * mf) / mc;
 
-      if (contains(columns, "ro")) { printf("%12u", ro); }
-      if (contains(columns, "rob")) { printf("%12u", rob); }
-      if (contains(columns, "rkb")) { printf("%12u", rkb); }
-      if (contains(columns, "wo")) { printf("%12u", wo); }
-      if (contains(columns, "wob")) { printf("%12u", wob); }
-      if (contains(columns, "wkb")) { printf("%12u", wkb); }
-      if (contains(columns, "mc")) { printf("%12u", mc); }
-      if (contains(columns, "mu")) { printf("%12u", mu); }
-      if (contains(columns, "mup")) { printf("%12u", mup); }
-      if (contains(columns, "mf")) { printf("%12u", mf); }
-      if (contains(columns, "mfp")) { printf("%12u", mfp); }
+      if (contains(columns, "ro")) { printf("%12llu", ro); }
+      if (contains(columns, "rob")) { printf("%12llu", rob); }
+      if (contains(columns, "rkb")) { printf("%12llu", rkb); }
+      if (contains(columns, "wo")) { printf("%12llu", wo); }
+      if (contains(columns, "wob")) { printf("%12llu", wob); }
+      if (contains(columns, "wkb")) { printf("%12llu", wkb); }
+      if (contains(columns, "mc")) { printf("%12llu", mc); }
+      if (contains(columns, "mu")) { printf("%12llu", mu); }
+      if (contains(columns, "mup")) { printf("%12llu", mup); }
+      if (contains(columns, "mf")) { printf("%12llu", mf); }
+      if (contains(columns, "mfp")) { printf("%12llu", mfp); }
 
       Ro += ro;
       Rob += rob;
@@ -293,124 +289,22 @@ try
     uint64_t Mup = (100 * Mu) / Mc;
     uint64_t Mfp = (100 * Mf) / Mc;
 
-    if (contains(columns, "Ro")) { printf("%12u", Ro); }
-    if (contains(columns, "Rob")) { printf("%12u", Rob); }
-    if (contains(columns, "Rkb")) { printf("%12u", Rkb); }
-    if (contains(columns, "Wo")) { printf("%12u", Wo); }
-    if (contains(columns, "Wob")) { printf("%12u", Wob); }
-    if (contains(columns, "Wkb")) { printf("%12u", Wkb); }
-    if (contains(columns, "Mc")) { printf("%12u", Mc); }
-    if (contains(columns, "Mu")) { printf("%12u", Mu); }
-    if (contains(columns, "Mup")) { printf("%12u", Mup); }
-    if (contains(columns, "Mf")) { printf("%12u", Mf); }
-    if (contains(columns, "Mfp")) { printf("%12u", Mfp); }
+    if (contains(columns, "Ro")) { printf("%12llu", Ro); }
+    if (contains(columns, "Rob")) { printf("%12llu", Rob); }
+    if (contains(columns, "Rkb")) { printf("%12llu", Rkb); }
+    if (contains(columns, "Wo")) { printf("%12llu", Wo); }
+    if (contains(columns, "Wob")) { printf("%12llu", Wob); }
+    if (contains(columns, "Wkb")) { printf("%12llu", Wkb); }
+    if (contains(columns, "Mc")) { printf("%12llu", Mc); }
+    if (contains(columns, "Mu")) { printf("%12llu", Mu); }
+    if (contains(columns, "Mup")) { printf("%12llu", Mup); }
+    if (contains(columns, "Mf")) { printf("%12llu", Mf); }
+    if (contains(columns, "Mfp")) { printf("%12llu", Mfp); }
 
     printf("\n");
   }
 
-  return 1;
-
-//  bool printHeader=true;
-//  std::vector<PerfStats> prevStats;
-//  std::vector<PerfStats> currStats;
-//  int mode = 1;
-//  while(true) {
-//    Buffer statBuf;
-//    client.serverControlAll(WireFormat::ControlOp::GET_PERF_STATS, NULL, 0, 
-//        &statBuf);
-//
-//    parseStats(&statBuf, &currStats);
-//    switch(mode) {
-//      case 1:
-//        if (printHeader) {
-//          for (size_t i = 0; i < currStats.size(); i++) {
-//            PerfStats& p = currStats[i];
-//            if (p.collectionTime == 0) {
-//              continue;
-//            }
-//            char columnTitle[50];
-//            sprintf(columnTitle, "%d.reads", i);
-//            printf("%12s", columnTitle);
-//            sprintf(columnTitle, "(+diff)");
-//            printf("%12s", columnTitle); 
-//          }
-//          printf("\n");
-//          printHeader=false;
-//        } 
-//
-//        for (size_t i = 0; i < currStats.size(); i++) {
-//          PerfStats& p = currStats[i];
-//          if (p.collectionTime == 0) {
-//            continue;
-//          }
-//          printf("%12d", p.readCount);
-//
-//          int diff = 0;
-//          if (prevStats.size() == currStats.size()) {
-//            diff = p.readCount - prevStats[i].readCount;
-//          } 
-//
-//          char column[50];
-//          sprintf(column, "(+ %d)", diff);
-//          printf("%12s", column);
-//        }
-//        printf("\n");
-//        break;
-//      case 2:
-//        if (printHeader) {
-//          for (size_t i = 0; i < currStats.size(); i++) {
-//            PerfStats& p = currStats[i];
-//            if (p.collectionTime == 0) {
-//              continue;
-//            }
-//            char columnTitle[50];
-//            sprintf(columnTitle, "%d.reads", i);
-//            printf("%12s", columnTitle);
-//            sprintf(columnTitle, "(+diff)");
-//            printf("%12s", columnTitle); 
-//          }
-//          printf("\n");
-//          printHeader=false;
-//        } 
-//
-//        for (size_t i = 0; i < currStats.size(); i++) {
-//          PerfStats& p = currStats[i];
-//          if (p.collectionTime == 0) {
-//            continue;
-//          }
-//          printf("%12d", p.readCount);
-//
-//          int diff = 0;
-//          if (prevStats.size() == currStats.size()) {
-//            diff = p.readCount - prevStats[i].readCount;
-//          } 
-//
-//          char column[50];
-//          sprintf(column, "(+ %d)", diff);
-//          printf("%12s", column);
-//        }
-//        printf("\n");
-//        break;
-//      default:
-//        break;
-//    }
-//
-//    prevStats = currStats;
-//
-//    Cycles::sleep((uint64_t)interval*1000000);
-//  }
-//  /*
-//  Cycles::sleep(1000000);
-//  Buffer afterStats;
-//  client.serverControlAll(WireFormat::ControlOp::GET_PERF_STATS, NULL, 0, 
-//      &afterStats);
-//  string stats = PerfStats::printClusterStats(&statBuf, &afterStats)
-//      .c_str(); 
-//
-//  printf("%s", stats.c_str());
-//  */
-//
-//  return 0;
+  return 0;
 } catch (RAMCloud::ClientException& e) {
     fprintf(stderr, "RAMCloud exception: %s\n", e.str().c_str());
     return 1;
