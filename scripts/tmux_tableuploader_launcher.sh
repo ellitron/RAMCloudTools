@@ -2,13 +2,19 @@
 #./TableUploader -C infrc:host=192.168.1.170,port=12246 --tableName test0004
 #--serverSpan 16 --imageFile 20160526.ldbc_snb_sf0100_vertexTable.img
 #--splitSuffixFormat ".part%04d" --numThreads 3
-numClients=6
+numClients=12
 numThreads=4
 coordLoc="infrc:host=192.168.1.170,port=12246"
-tableName="test0001"
-serverSpan=16
-masters=16
-imageFile="20160526.ldbc_snb_sf0100_vertexTable.img"
+tableNames[0]="ldbc_snb_sf0100_01_vertexTable"
+tableNames[1]="ldbc_snb_sf0100_01_edgeListTable"
+#tableNames[0]="ldbc_snb_sf0001_01_vertexTable"
+#tableNames[1]="ldbc_snb_sf0001_01_edgeListTable"
+serverSpan=25
+masters=25
+imageFiles[0]="20160531.ldbc_snb_sf0100_vertexTable.img"
+imageFiles[1]="20160526.ldbc_snb_sf0100_edgeListTable.img"
+#imageFiles[0]="20160601.ldbc_snb_sf0001_vertexTable.img"
+#imageFiles[1]="20160601.ldbc_snb_sf0001_edgeListTable.img"
 splitSuffixFormat=".part%04d"
 reportInterval=2
 reportFormat="OFDT"
@@ -32,12 +38,18 @@ do
   tmux select-layout tiled
 done
 
-# Setup the panes for loading but stop before executing GraphLoader
+# Where in the rc reservation to start clients from.                            
+clientsOffset=$(( 10 + masters ))  
+
+# Setup the panes for loading but stop before executing TableUploader
 for (( i=0; i<$numClients; i++ ))
 do
   tmux select-pane -t $i
-  tmux send-keys "ssh rc${hosts[masters+i]}" C-m
+  tmux send-keys "ssh rc${hosts[clientsOffset + i]}" C-m
   tmux send-keys "cd $SCRIPTPATH; cd .." C-m
-  tmux send-keys "./TableUploader -C $coordLoc --numClients $numClients --clientIndex $i --tableName $tableName --serverSpan $serverSpan --imageFile $imageFile --splitSuffixFormat \"$splitSuffixFormat\" --numThreads $numThreads --reportInterval $reportInterval --reportFormat $reportFormat"
+  for (( j=0; j<${#tableNames[*]}; j++ ))
+  do
+    tmux send-keys "./TableUploader -C $coordLoc --numClients $numClients --clientIndex $i --tableName ${tableNames[j]} --serverSpan $serverSpan --imageFile ${imageFiles[j]} --splitSuffixFormat \"$splitSuffixFormat\" --numThreads $numThreads --reportInterval $reportInterval --reportFormat $reportFormat; "
+  done
 done
 
