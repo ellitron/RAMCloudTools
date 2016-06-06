@@ -169,7 +169,11 @@ try
   /*
    * Print column headers.
    */
-  for (size_t i = 0; i < currStats.size() - 1; i++) {
+  for (size_t i = 0; i < currStats.size(); i++) {
+    if (currStats[i].collectionTime == 0) {
+      continue;
+    }
+
     /*
      * ro   - Per server number of objects read.
      * rob  - Per server number of bytes in objects read.
