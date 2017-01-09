@@ -99,6 +99,7 @@ main(int argc, char *argv[])
 try
 {
   int interval;
+  int colWidth;
   std::string format;
 
   // Set line buffering for stdout so that printf's and log messages
@@ -112,6 +113,10 @@ try
      ProgramOptions::value<int>(&interval)->
         default_value(1),
      "Reporting interval for statistics in seconds (default: 1s).") 
+    ("colWidth",
+     ProgramOptions::value<int>(&colWidth)->
+        default_value(12),
+     "Column width for output (default: 12).") 
     ("format",
      ProgramOptions::value<std::string>(&format)->
          default_value("mup,Mup"),
@@ -163,8 +168,10 @@ try
       &statBuf);
   parseStats(&statBuf, &currStats);
 
-  int colWidth = 12;
-  const char *colFmtStr = "%12s";
+  char colHdrFmtStr[32];
+  snprintf(colHdrFmtStr, sizeof(colHdrFmtStr), "%%%ds", colWidth);
+  char colStatFmtStr[32];
+  snprintf(colStatFmtStr, sizeof(colStatFmtStr), "%%%dllu", colWidth);
 
   /*
    * Print column headers.
@@ -187,17 +194,17 @@ try
      * mf   - Per server amount of memory free in bytes.
      * mfp  - Per server amount of memory free as a \% of capacity.
      */
-    if (contains(columns, "ro")) { printf(colFmtStr, "ro"); }
-    if (contains(columns, "rob")) { printf(colFmtStr, "rob"); }
-    if (contains(columns, "rkb")) { printf(colFmtStr, "rkb"); }
-    if (contains(columns, "wo")) { printf(colFmtStr, "wo"); }
-    if (contains(columns, "wob")) { printf(colFmtStr, "wob"); }
-    if (contains(columns, "wkb")) { printf(colFmtStr, "wkb"); }
-    if (contains(columns, "mc")) { printf(colFmtStr, "mc"); }
-    if (contains(columns, "mu")) { printf(colFmtStr, "mu"); }
-    if (contains(columns, "mup")) { printf(colFmtStr, "mup"); }
-    if (contains(columns, "mf")) { printf(colFmtStr, "mf"); }
-    if (contains(columns, "mfp")) { printf(colFmtStr, "mfp"); }
+    if (contains(columns, "ro")) { printf(colHdrFmtStr, "ro"); }
+    if (contains(columns, "rob")) { printf(colHdrFmtStr, "rob"); }
+    if (contains(columns, "rkb")) { printf(colHdrFmtStr, "rkb"); }
+    if (contains(columns, "wo")) { printf(colHdrFmtStr, "wo"); }
+    if (contains(columns, "wob")) { printf(colHdrFmtStr, "wob"); }
+    if (contains(columns, "wkb")) { printf(colHdrFmtStr, "wkb"); }
+    if (contains(columns, "mc")) { printf(colHdrFmtStr, "mc"); }
+    if (contains(columns, "mu")) { printf(colHdrFmtStr, "mu"); }
+    if (contains(columns, "mup")) { printf(colHdrFmtStr, "mup"); }
+    if (contains(columns, "mf")) { printf(colHdrFmtStr, "mf"); }
+    if (contains(columns, "mfp")) { printf(colHdrFmtStr, "mfp"); }
   }
 
   /*
@@ -213,17 +220,17 @@ try
    * Mf   - Total amount of memory free in bytes.
    * Mfp  - Total amount of memory free as a \% of capacity.
    */
-  if (contains(columns, "Ro")) { printf(colFmtStr, "Ro"); }
-  if (contains(columns, "Rob")) { printf(colFmtStr, "Rob"); }
-  if (contains(columns, "Rkb")) { printf(colFmtStr, "Rkb"); }
-  if (contains(columns, "Wo")) { printf(colFmtStr, "Wo"); }
-  if (contains(columns, "Wob")) { printf(colFmtStr, "Wob"); }
-  if (contains(columns, "Wkb")) { printf(colFmtStr, "Wkb"); }
-  if (contains(columns, "Mc")) { printf(colFmtStr, "Mc"); }
-  if (contains(columns, "Mu")) { printf(colFmtStr, "Mu"); }
-  if (contains(columns, "Mup")) { printf(colFmtStr, "Mup"); }
-  if (contains(columns, "Mf")) { printf(colFmtStr, "Mf"); }
-  if (contains(columns, "Mfp")) { printf(colFmtStr, "Mfp"); }
+  if (contains(columns, "Ro")) { printf(colHdrFmtStr, "Ro"); }
+  if (contains(columns, "Rob")) { printf(colHdrFmtStr, "Rob"); }
+  if (contains(columns, "Rkb")) { printf(colHdrFmtStr, "Rkb"); }
+  if (contains(columns, "Wo")) { printf(colHdrFmtStr, "Wo"); }
+  if (contains(columns, "Wob")) { printf(colHdrFmtStr, "Wob"); }
+  if (contains(columns, "Wkb")) { printf(colHdrFmtStr, "Wkb"); }
+  if (contains(columns, "Mc")) { printf(colHdrFmtStr, "Mc"); }
+  if (contains(columns, "Mu")) { printf(colHdrFmtStr, "Mu"); }
+  if (contains(columns, "Mup")) { printf(colHdrFmtStr, "Mup"); }
+  if (contains(columns, "Mf")) { printf(colHdrFmtStr, "Mf"); }
+  if (contains(columns, "Mfp")) { printf(colHdrFmtStr, "Mfp"); }
 
   printf("\n");
 
@@ -270,17 +277,17 @@ try
       uint64_t mf = c.logAppendableBytes;
       uint64_t mfp = (100 * mf) / mc;
 
-      if (contains(columns, "ro")) { printf("%12llu", ro); }
-      if (contains(columns, "rob")) { printf("%12llu", rob); }
-      if (contains(columns, "rkb")) { printf("%12llu", rkb); }
-      if (contains(columns, "wo")) { printf("%12llu", wo); }
-      if (contains(columns, "wob")) { printf("%12llu", wob); }
-      if (contains(columns, "wkb")) { printf("%12llu", wkb); }
-      if (contains(columns, "mc")) { printf("%12llu", mc); }
-      if (contains(columns, "mu")) { printf("%12llu", mu); }
-      if (contains(columns, "mup")) { printf("%12llu", mup); }
-      if (contains(columns, "mf")) { printf("%12llu", mf); }
-      if (contains(columns, "mfp")) { printf("%12llu", mfp); }
+      if (contains(columns, "ro")) { printf(colStatFmtStr, ro); }
+      if (contains(columns, "rob")) { printf(colStatFmtStr, rob); }
+      if (contains(columns, "rkb")) { printf(colStatFmtStr, rkb); }
+      if (contains(columns, "wo")) { printf(colStatFmtStr, wo); }
+      if (contains(columns, "wob")) { printf(colStatFmtStr, wob); }
+      if (contains(columns, "wkb")) { printf(colStatFmtStr, wkb); }
+      if (contains(columns, "mc")) { printf(colStatFmtStr, mc); }
+      if (contains(columns, "mu")) { printf(colStatFmtStr, mu); }
+      if (contains(columns, "mup")) { printf(colStatFmtStr, mup); }
+      if (contains(columns, "mf")) { printf(colStatFmtStr, mf); }
+      if (contains(columns, "mfp")) { printf(colStatFmtStr, mfp); }
 
       Ro += ro;
       Rob += rob;
@@ -296,17 +303,17 @@ try
     uint64_t Mup = (100 * Mu) / Mc;
     uint64_t Mfp = (100 * Mf) / Mc;
 
-    if (contains(columns, "Ro")) { printf("%12llu", Ro); }
-    if (contains(columns, "Rob")) { printf("%12llu", Rob); }
-    if (contains(columns, "Rkb")) { printf("%12llu", Rkb); }
-    if (contains(columns, "Wo")) { printf("%12llu", Wo); }
-    if (contains(columns, "Wob")) { printf("%12llu", Wob); }
-    if (contains(columns, "Wkb")) { printf("%12llu", Wkb); }
-    if (contains(columns, "Mc")) { printf("%12llu", Mc); }
-    if (contains(columns, "Mu")) { printf("%12llu", Mu); }
-    if (contains(columns, "Mup")) { printf("%12llu", Mup); }
-    if (contains(columns, "Mf")) { printf("%12llu", Mf); }
-    if (contains(columns, "Mfp")) { printf("%12llu", Mfp); }
+    if (contains(columns, "Ro")) { printf(colStatFmtStr, Ro); }
+    if (contains(columns, "Rob")) { printf(colStatFmtStr, Rob); }
+    if (contains(columns, "Rkb")) { printf(colStatFmtStr, Rkb); }
+    if (contains(columns, "Wo")) { printf(colStatFmtStr, Wo); }
+    if (contains(columns, "Wob")) { printf(colStatFmtStr, Wob); }
+    if (contains(columns, "Wkb")) { printf(colStatFmtStr, Wkb); }
+    if (contains(columns, "Mc")) { printf(colStatFmtStr, Mc); }
+    if (contains(columns, "Mu")) { printf(colStatFmtStr, Mu); }
+    if (contains(columns, "Mup")) { printf(colStatFmtStr, Mup); }
+    if (contains(columns, "Mf")) { printf(colStatFmtStr, Mf); }
+    if (contains(columns, "Mfp")) { printf(colStatFmtStr, Mfp); }
 
     printf("\n");
   }
