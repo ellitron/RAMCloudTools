@@ -230,8 +230,11 @@ try
   std::vector<PerfStats> prevStats;
   while (true) {
     sleep(interval);
-    
-    prevStats = currStats;
+  
+    prevStats.clear(); 
+    for (int i = 0; i < currStats.size(); i++) {
+      prevStats.push_back(currStats[i]);
+    } 
 
     Buffer statBuf;
     client.serverControlAll(WireFormat::ControlOp::GET_PERF_STATS, NULL, 0, 
