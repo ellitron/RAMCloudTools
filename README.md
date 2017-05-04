@@ -1,2 +1,2 @@
 # RAMCloudTools
-Collection of useful tools for RAMCloud.
+Collection of utilities for RAMCloud.
