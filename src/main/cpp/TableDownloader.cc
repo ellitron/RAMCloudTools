@@ -43,7 +43,7 @@ try
     int clientIndex;
     int numClients;
     string tableName;
-    string imageFileName;
+    string outputDir;
 
     // Set line buffering for stdout so that printf's and log messages
     // interleave properly.
@@ -68,10 +68,10 @@ try
 
         ("tableName",
          ProgramOptions::value<string>(&tableName),
-         "Name of the table to image.")
-        ("imageFile",
-         ProgramOptions::value<string>(&imageFileName),
-         "Name of the image file to create.");
+         "Name of the table to download.")
+        ("outputDir",
+         ProgramOptions::value<string>(&outputDir),
+         "Directory to write image file.");
     
     OptionParser optionParser(clientOptions, argc, argv);
     context.transportManager->setSessionTimeout(
@@ -87,10 +87,12 @@ try
     RamCloud client(&context, locator.c_str(),
             optionParser.options.getClusterName().c_str());
 
-    LOG(NOTICE, "Downloading table %s to file %s", tableName.c_str(), imageFileName.c_str());
+    std::string fileName = outputDir + "/" + tableName + ".img";
+
+    LOG(NOTICE, "Downloading table %s to %s", tableName.c_str(), fileName.c_str());
 
     std::ofstream imageFile;
-    imageFile.open(imageFileName.c_str(), std::ios::binary);
+    imageFile.open(fileName.c_str(), std::ios::binary);
 
     uint64_t tableId;
     tableId = client.getTableId(tableName.c_str());
