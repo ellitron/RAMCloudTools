@@ -249,8 +249,9 @@ void statsReporterThread(struct ThreadStats *threadStats, int numThreads,
  *      The size of multiwrites to use.
  */
 void loaderThread(RamCloud *client, int serverSpan,
-    std::vector<std::string> fileList, std::string snapshotDir, int startIndex, 
-    int length, int multiwriteSize, struct ThreadStats *stats) {
+    std::vector<std::string> fileList, std::string snapshotDir, 
+    std::string tableNameSuffix, int startIndex, int length, 
+    int multiwriteSize, struct ThreadStats *stats) {
  
   stats->totalFilesToLoad = length;
 
@@ -263,8 +264,10 @@ void loaderThread(RamCloud *client, int serverSpan,
 
     inFile.open(fileName.c_str(), std::ios::binary);
 
-    uint64_t tableId = client->createTable(
-        fileName.substr(0, fileName.find(".img")).c_str(), serverSpan);
+    std::string tableName = fileName.substr(0, fileName.find(".img")) +
+        tableNameSuffix;
+
+    uint64_t tableId = client->createTable(tableName.c_str(), serverSpan);
 
     Tub<MultiWriteObject> objects[multiwriteSize];
     MultiWriteObject* requests[multiwriteSize];
@@ -342,6 +345,7 @@ try
   int clientIndex;
   int numClients;
   std::string snapshotDir;
+  std::string tableNameSuffix;
   int serverSpan;
   int numThreads;
   int multiwriteSize;
@@ -367,6 +371,10 @@ try
     ("snapshotDir",
      ProgramOptions::value<std::string>(&snapshotDir),
      "Directory where the snapshot is located.")
+    ("tableNameSuffix",
+     ProgramOptions::value<std::string>(&tableNameSuffix)->default_value(""),
+     "Suffix to append to the table names (for loading multiple copies of a "
+     "snapshot) [default: ]")
     ("serverSpan",
      ProgramOptions::value<int>(&serverSpan)->
          default_value(1),
@@ -472,8 +480,8 @@ try
     clients[i] = new RamCloud(locator.c_str());
 
     threads.emplace_back(loaderThread, clients[i], serverSpan, fileList,
-        snapshotDir, threadLoadOffset, threadLoadSize, multiwriteSize, 
-        &tStats[i]);
+        snapshotDir, tableNameSuffix, threadLoadOffset, threadLoadSize, 
+        multiwriteSize, &tStats[i]);
   }
 
   // Give the threads some time to initialize their statistics. Otherwise the
