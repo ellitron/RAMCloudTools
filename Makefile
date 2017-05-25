@@ -1,8 +1,9 @@
-RAMCLOUD_DIR := $(HOME)/RAMCloud
-RAMCLOUD_OBJ_DIR := $(RAMCLOUD_DIR)/obj.jtransactions
+RAMCLOUD_DIR := ../TorcDB/RAMCloud
+RAMCLOUD_OBJ_DIR := $(RAMCLOUD_DIR)/obj
 
 TARGETS :=  TableDownloader \
             TableUploader \
+            SnapshotLoader \
             TimeOp \
             TableEnumeratorTestCase \
             TransactionsTestCase \
