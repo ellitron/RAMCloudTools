@@ -260,12 +260,13 @@ void loaderThread(RamCloud *client, int serverSpan,
 
   for (int fIndex = startIndex; fIndex < startIndex + length; fIndex++) { 
     std::ifstream inFile;
-    std::string fileName = snapshotDir + "/" + fileList[fIndex];
-
-    inFile.open(fileName.c_str(), std::ios::binary);
+    std::string fileName = fileList[fIndex];
 
     std::string tableName = fileName.substr(0, fileName.find(".img")) +
         tableNameSuffix;
+
+    std::string filePath = snapshotDir + "/" + fileName;
+    inFile.open(filePath.c_str(), std::ios::binary);
 
     uint64_t tableId = client->createTable(tableName.c_str(), serverSpan);
 
