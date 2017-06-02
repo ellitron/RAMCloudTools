@@ -5,6 +5,7 @@ TARGETS :=  TableDownloader \
             TableUploader \
             SnapshotLoader \
             TimeOp \
+						TimeReads \
             TableEnumeratorTestCase \
             TransactionsTestCase \
             GetStats \
