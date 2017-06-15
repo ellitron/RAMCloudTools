@@ -7,6 +7,7 @@ TARGETS :=  TableDownloader \
             TimeOp \
 						TimeReads \
 						TimeMultiReads \
+						TimeTransactionsAsyncReads \
             TableEnumeratorTestCase \
             TransactionsTestCase \
             GetStats \
