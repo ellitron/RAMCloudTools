@@ -1,5 +1,5 @@
-RAMCLOUD_DIR := ../TorcDB/RAMCloud
-RAMCLOUD_OBJ_DIR := $(RAMCLOUD_DIR)/obj
+RAMCLOUD_DIR := ../../RAMCloud-profiling
+RAMCLOUD_OBJ_DIR := $(RAMCLOUD_DIR)/obj.master
 
 TARGETS :=  TableDownloader \
             TableUploader \
@@ -9,6 +9,7 @@ TARGETS :=  TableDownloader \
 						TimeMultiReads \
 						TimeTransactionsAsyncReads \
             TableEnumeratorTestCase \
+						TimeTraceTxReadOp \
             TransactionsTestCase \
             GetStats \
 						GetMetrics \
