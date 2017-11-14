@@ -45,8 +45,9 @@ int
 main(int argc, char *argv[])
 try
 {
-  string imageFileName;
+  string imageFilePath;
   long objectsPerFile;
+  string outputDir;
   string splitSuffixFormat;
 
   // Set line buffering for stdout so that printf's and log messages
@@ -60,11 +61,14 @@ try
   clientOptions.add_options()
 
     ("imageFile",
-     ProgramOptions::value<string>(&imageFileName),
-     "Name of the image file to split.")
+     ProgramOptions::value<string>(&imageFilePath),
+     "Path to the image file to split.")
     ("objectsPerFile",
      ProgramOptions::value<long>(&objectsPerFile),
      "How many objects to pack into a partition.")
+    ("outputDir",
+     ProgramOptions::value<string>(&outputDir),
+     "Directory to write split files.")
     ("splitSuffixFormat",
      ProgramOptions::value<string>(&splitSuffixFormat)->
          default_value(".part%04d"),
@@ -74,12 +78,19 @@ try
   OptionParser optionParser(clientOptions, argc, argv);
 
   printf("TableImageSplitter: {imageFile: %s, objectsPerFile: %u, "
-      "splitSuffixFormat: %s}\n", imageFileName.c_str(), objectsPerFile,
-      splitSuffixFormat.c_str());
+      "outputDir: %s, splitSuffixFormat: %s}\n", imageFilePath.c_str(), 
+      objectsPerFile, outputDir.c_str(), splitSuffixFormat.c_str());
 
   // Open image file for splitting. 
   std::ifstream inFile;
-  inFile.open(imageFileName.c_str(), std::ios::binary);
+  inFile.open(imageFilePath.c_str(), std::ios::binary);
+
+  size_t lastSlashIndex = imageFilePath.find_last_of("/");
+  string imageFileName;
+  if (lastSlashIndex != string::npos)
+    imageFileName = imageFilePath.substr(lastSlashIndex + 1);
+  else 
+    imageFileName = imageFilePath;
 
   long partitionCount = 0; // How many partitions we've created so far.
   long objCount = 0; // How many objects are in the current partition.
@@ -88,7 +99,8 @@ try
 
   // Open initial output file for first partition.
   char *outFileName;
-  asprintf(&outFileName, (imageFileName + splitSuffixFormat).c_str(),
+  asprintf(&outFileName, 
+      (outputDir + "/" + imageFileName + splitSuffixFormat).c_str(),
       partitionCount); 
   std::ofstream outFile;
   outFile.open(outFileName, std::ios::binary);
@@ -123,7 +135,8 @@ try
       partitionCount++;
       printf("Done\n");
 
-      asprintf(&outFileName, (imageFileName + splitSuffixFormat).c_str(),
+      asprintf(&outFileName, 
+          (outputDir + "/" + imageFileName + splitSuffixFormat).c_str(),
           partitionCount); 
       outFile.open(outFileName, std::ios::binary);
       printf("Creating %s... ", outFileName);
