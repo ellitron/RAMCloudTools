@@ -154,23 +154,24 @@ try
             (outputDir + "/" + tableName + ".img" + splitSuffixFormat).c_str(),
             partitionCount); 
         imageFile.open(outFileName, std::ios::binary);
-        free(outFileName);
 
         LOG(NOTICE, "Downloading table %s to partition %s", tableName.c_str(), 
             outFileName);
+
+        free(outFileName);
 
         partitionByteCount = 0;
       }
 
       if (objCount % 100000 == 0) {
-        LOG(NOTICE, "Status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, totalByteCount/(1024*1024), totalByteCount/(1024), totalByteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
+        LOG(NOTICE, "Status (objects: %lu, size: %luMB/%luKB/%luB, time: %0.2fs).", objCount, totalByteCount/(1024*1024), totalByteCount/(1024), totalByteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
       }      
     }
     uint64_t endTime = Cycles::rdtsc();
     LOG(NOTICE, "Closing file...");    
     imageFile.close();
 
-    LOG(NOTICE, "Table downloaded (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, totalByteCount/(1024*1024), totalByteCount/(1024), totalByteCount, Cycles::toSeconds(endTime - startTime));
+    LOG(NOTICE, "Table downloaded (objects: %lu, size: %luMB/%luKB/%luB, time: %0.2fs).", objCount, totalByteCount/(1024*1024), totalByteCount/(1024), totalByteCount, Cycles::toSeconds(endTime - startTime));
 
     return 0;
 } catch (RAMCloud::ClientException& e) {
