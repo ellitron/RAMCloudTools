@@ -43,6 +43,8 @@ try
     int clientIndex;
     int numClients;
     string tableName;
+    long bytesPerFile;
+    string splitSuffixFormat;
     string outputDir;
 
     // Set line buffering for stdout so that printf's and log messages
@@ -69,6 +71,16 @@ try
         ("tableName",
          ProgramOptions::value<string>(&tableName),
          "Name of the table to download.")
+        ("bytesPerFile",
+         ProgramOptions::value<long>(&bytesPerFile)->default_value(0),
+         "How many bytes to pack into a partition. A value of 0 implies all "
+         "output goes to a single file. [default: 0]")
+        ("splitSuffixFormat",
+         ProgramOptions::value<string>(&splitSuffixFormat)->
+             default_value(".part%04d"),
+         "Format string of the suffix to use for partitions (used when "
+         "bytesPerFile > 0). Must contain exactly one %d. "
+         "[default: \".part%04d\"].")
         ("outputDir",
          ProgramOptions::value<string>(&outputDir),
          "Directory to write image file.");
@@ -87,12 +99,24 @@ try
     RamCloud client(&context, locator.c_str(),
             optionParser.options.getClusterName().c_str());
 
-    std::string fileName = outputDir + "/" + tableName + ".img";
-
-    LOG(NOTICE, "Downloading table %s to %s", tableName.c_str(), fileName.c_str());
+    long partitionCount = 0;
+    char *outFileName;
+    if (bytesPerFile > 0) {
+      asprintf(&outFileName, 
+          (outputDir + "/" + tableName + ".img" + splitSuffixFormat).c_str(),
+          partitionCount); 
+      LOG(NOTICE, "Downloading table %s to partition %s", tableName.c_str(), 
+          outFileName);
+    } else {
+      asprintf(&outFileName, 
+          (outputDir + "/" + tableName + ".img").c_str()); 
+      LOG(NOTICE, "Downloading table %s to %s", tableName.c_str(), outFileName);
+    }
 
     std::ofstream imageFile;
-    imageFile.open(fileName.c_str(), std::ios::binary);
+    imageFile.open(outFileName, std::ios::binary);
+
+    free(outFileName);
 
     uint64_t tableId;
     tableId = client.getTableId(tableName.c_str());
@@ -105,7 +129,8 @@ try
     const void* data = 0;
 
     long objCount = 0;    
-    long byteCount = 0;
+    long totalByteCount = 0;
+    long partitionByteCount = 0;
     uint64_t startTime = Cycles::rdtsc();
     while (true) {
       if (!iter.hasNext())
@@ -118,16 +143,34 @@ try
       imageFile.write((char*) data, dataLength);
               
       objCount++;
-      byteCount += keyLength + dataLength;
+      totalByteCount += keyLength + dataLength;
+      partitionByteCount += keyLength + dataLength;
+      
+      if (bytesPerFile > 0 && partitionByteCount > bytesPerFile) {
+        LOG(NOTICE, "Closing file...");    
+        imageFile.close();
+        partitionCount++;
+        asprintf(&outFileName, 
+            (outputDir + "/" + tableName + ".img" + splitSuffixFormat).c_str(),
+            partitionCount); 
+        imageFile.open(outFileName, std::ios::binary);
+        free(outFileName);
+
+        LOG(NOTICE, "Downloading table %s to partition %s", tableName.c_str(), 
+            outFileName);
+
+        partitionByteCount = 0;
+      }
+
       if (objCount % 100000 == 0) {
-        LOG(NOTICE, "Status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
+        LOG(NOTICE, "Status (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, totalByteCount/(1024*1024), totalByteCount/(1024), totalByteCount, Cycles::toSeconds(Cycles::rdtsc() - startTime)); 
       }      
     }
     uint64_t endTime = Cycles::rdtsc();
     LOG(NOTICE, "Closing file...");    
     imageFile.close();
 
-    LOG(NOTICE, "Table downloaded (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, byteCount/(1024*1024), byteCount/(1024), byteCount, Cycles::toSeconds(endTime - startTime));
+    LOG(NOTICE, "Table downloaded (objects: %d, size: %dMB/%dKB/%dB, time: %0.2fs).", objCount, totalByteCount/(1024*1024), totalByteCount/(1024), totalByteCount, Cycles::toSeconds(endTime - startTime));
 
     return 0;
 } catch (RAMCloud::ClientException& e) {
