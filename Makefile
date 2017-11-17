@@ -1,20 +1,20 @@
-RAMCLOUD_DIR := ../../RAMCloud-profiling
-RAMCLOUD_OBJ_DIR := $(RAMCLOUD_DIR)/obj.master
+RAMCLOUD_DIR := /shome/jde/RAMCloud
+RAMCLOUD_OBJ_DIR := $(RAMCLOUD_DIR)/obj.java-transactions
 
 TARGETS :=  TableDownloader \
             TableUploader \
             SnapshotLoader \
             TimeOp \
-						TimeReads \
-						TimeMultiReads \
-						TimeTransactionsAsyncReads \
+            TimeReads \
+            TimeMultiReads \
+            TimeTransactionsAsyncReads \
             TableEnumeratorTestCase \
-						TimeTraceTxReadOp \
+            TimeTraceTxReadOp \
             TransactionsTestCase \
             GetStats \
-						GetMetrics \
-						rcstat \
-						TableImageSplitter
+            GetMetrics \
+            rcstat \
+            TableImageSplitter
 
 all: $(TARGETS)
 
