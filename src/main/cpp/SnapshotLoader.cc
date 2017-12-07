@@ -248,7 +248,7 @@ void statsReporterThread(struct ThreadStats *threadStats, int numThreads,
  * \param multiwriteSize
  *      The size of multiwrites to use.
  */
-void loaderThread(RamCloud *client, int serverSpan,
+void fileLoaderThread(RamCloud *client, int serverSpan,
     std::vector<std::string> fileList, std::string snapshotDir, 
     std::string tableNameSuffix, int startIndex, int length, 
     int multiwriteSize, struct ThreadStats *stats) {
@@ -346,6 +346,7 @@ try
   int clientIndex;
   int numClients;
   std::string snapshotDir;
+  std::string tableName;
   std::string tableNameSuffix;
   int serverSpan;
   int numThreads;
@@ -370,8 +371,12 @@ try
      "Total number of clients running [default: 1].")
 
     ("snapshotDir",
-     ProgramOptions::value<std::string>(&snapshotDir),
-     "Directory where the snapshot is located.")
+     ProgramOptions::value<std::string>(&snapshotDir)->default_value(""),
+     "Directory where the snapshot is located. If unspecified, assumes "
+     "taking input from stdin.")
+    ("tableName",
+     ProgramOptions::value<std::string>(&tableName)->default_value(""),
+     "Table name to use when taking input from stdin [default: ]")
     ("tableNameSuffix",
      ProgramOptions::value<std::string>(&tableNameSuffix)->default_value(""),
      "Suffix to append to the table names (for loading multiple copies of a "
@@ -421,86 +426,165 @@ try
     locator = optionParser.options.getCoordinatorLocator();
   }
 
-  std::vector<std::string> fileList;
+  if (snapshotDir != "") {
+    std::vector<std::string> fileList;
 
-  DIR *dpdf;
-  struct dirent *epdf;
-  dpdf = opendir(snapshotDir.c_str());
-  if (dpdf != NULL) {
-    while (epdf = readdir(dpdf)) {
-      if (!(strcmp(epdf->d_name, ".") == 0 ||
-         strcmp(epdf->d_name, "..") == 0)) {
-        fileList.emplace_back(epdf->d_name);
-      } 
+    DIR *dpdf;
+    struct dirent *epdf;
+    dpdf = opendir(snapshotDir.c_str());
+    if (dpdf != NULL) {
+      while (epdf = readdir(dpdf)) {
+        if (!(strcmp(epdf->d_name, ".") == 0 ||
+          strcmp(epdf->d_name, "..") == 0)) {
+          fileList.emplace_back(epdf->d_name);
+        } 
+      }
     }
-  }
 
-  std::sort(fileList.begin(), fileList.end());
+    std::sort(fileList.begin(), fileList.end());
 
-  printf("Found %u total files\n", fileList.size());
+    printf("Found %u total files\n", fileList.size());
 
-  /*
-   * Calculate the segment of the list that this loader instance is
-   * responsible for loading.
-   */
-  int q = fileList.size() / numClients;
-  int r = fileList.size() % numClients;
+    /*
+    * Calculate the segment of the list that this loader instance is
+    * responsible for loading.
+    */
+    int q = fileList.size() / numClients;
+    int r = fileList.size() % numClients;
 
-  int loadSize;
-  int loadOffset;
-  if (clientIndex < r) {
-    loadSize = q + 1;
-    loadOffset = (q + 1) * clientIndex;
-  } else {
-    loadSize = q;
-    loadOffset = ((q + 1) * r) + (q * (clientIndex - r));
-  }
-
-  /*
-   * Divvy up the load and start the threads.
-   */
-  std::vector<std::thread> threads;
-  RamCloud *clients[numThreads];
-  ThreadStats tStats[numThreads];
-  for (int i = 0; i < numThreads; i++) {
-    int qt = loadSize / numThreads;
-    int rt = loadSize % numThreads;
-
-    int threadLoadSize;
-    int threadLoadOffset;
-    if (i < rt) {
-      threadLoadSize = qt + 1;
-      threadLoadOffset = (qt + 1) * i;
+    int loadSize;
+    int loadOffset;
+    if (clientIndex < r) {
+      loadSize = q + 1;
+      loadOffset = (q + 1) * clientIndex;
     } else {
-      threadLoadSize = qt;
-      threadLoadOffset = ((qt + 1) * rt) + (qt * (i - rt));
+      loadSize = q;
+      loadOffset = ((q + 1) * r) + (q * (clientIndex - r));
     }
 
-    threadLoadOffset += loadOffset;
+    /*
+    * Divvy up the load and start the threads.
+    */
+    std::vector<std::thread> threads;
+    RamCloud *clients[numThreads];
+    ThreadStats tStats[numThreads];
+    for (int i = 0; i < numThreads; i++) {
+      int qt = loadSize / numThreads;
+      int rt = loadSize % numThreads;
 
-    clients[i] = new RamCloud(locator.c_str());
+      int threadLoadSize;
+      int threadLoadOffset;
+      if (i < rt) {
+        threadLoadSize = qt + 1;
+        threadLoadOffset = (qt + 1) * i;
+      } else {
+        threadLoadSize = qt;
+        threadLoadOffset = ((qt + 1) * rt) + (qt * (i - rt));
+      }
 
-    threads.emplace_back(loaderThread, clients[i], serverSpan, fileList,
-        snapshotDir, tableNameSuffix, threadLoadOffset, threadLoadSize, 
-        multiwriteSize, &tStats[i]);
-  }
+      threadLoadOffset += loadOffset;
 
-  // Give the threads some time to initialize their statistics. Otherwise the
-  // stats thread will find that totalFileLoaded == totalFilesToLoad and exit.
-  sleep(1);
+      clients[i] = new RamCloud(locator.c_str());
 
-  // Start statistics reporting thread.
-  std::thread statsReporter(statsReporterThread, (struct ThreadStats*)tStats, 
-      numThreads, reportInterval, reportFormat);
+      threads.emplace_back(fileLoaderThread, clients[i], serverSpan, fileList,
+          snapshotDir, tableNameSuffix, threadLoadOffset, threadLoadSize, 
+          multiwriteSize, &tStats[i]);
+    }
 
-  for (int i = 0; i < numThreads; i++) {
-    threads[i].join();
-  }
+    // Give the threads some time to initialize their statistics. Otherwise the
+    // stats thread will find that totalFileLoaded == totalFilesToLoad and exit.
+    sleep(1);
 
-  statsReporter.join();
+    // Start statistics reporting thread.
+    std::thread statsReporter(statsReporterThread, (struct ThreadStats*)tStats, 
+        numThreads, reportInterval, reportFormat);
 
-  for (int i = 0; i < numThreads; i++) {
-    delete clients[i];
+    for (int i = 0; i < numThreads; i++) {
+      threads[i].join();
+    }
+
+    statsReporter.join();
+
+    for (int i = 0; i < numThreads; i++) {
+      delete clients[i];
+    }
+  } else {
+    // In this case we will read from stdin.
+    RamCloud client(locator.c_str());
+    ThreadStats stats;
+  
+    std::thread statsReporter(statsReporterThread, (struct ThreadStats*)&stats, 
+        numThreads, reportInterval, reportFormat);
+
+    stats.totalFilesToLoad = 1;
+
+    printf("Loading from stdin: {tableName: %s, multiwriteSize: %u}\n", 
+        tableName.c_str(), multiwriteSize);
+
+    uint64_t tableId = client.createTable(tableName.c_str(), serverSpan);
+
+    Tub<MultiWriteObject> objects[multiwriteSize];
+    MultiWriteObject* requests[multiwriteSize];
+    
+    std::vector<std::string> keys;
+    std::vector<std::string> values;
+
+    char lenBuffer[sizeof(uint32_t)];
+    while(std::cin.read(lenBuffer, sizeof(lenBuffer))) {
+      uint32_t keyLength = *((uint32_t*) lenBuffer); 
+      char keyBuffer[keyLength];
+      std::cin.read(keyBuffer, keyLength);
+      keys.emplace_back((const char*)keyBuffer, keyLength);
+      
+      std::cin.read(lenBuffer, sizeof(lenBuffer));
+      uint32_t dataLength = *((uint32_t*) lenBuffer);
+      char dataBuffer[dataLength];
+      std::cin.read(dataBuffer, dataLength);
+      values.emplace_back((const char*)dataBuffer, dataLength);
+
+      stats.bytesReadFromDisk += sizeof(lenBuffer)*2 + keyLength + dataLength;
+
+      objects[keys.size() - 1].construct( tableId,
+                                    (const void*) keys.back().data(),
+                                    keyLength,
+                                    (const void*) values.back().data(),
+                                    dataLength );
+      requests[keys.size() - 1] = objects[keys.size() - 1].get();
+
+      stats.bytesWrittenToRAMCloud += keyLength + dataLength;
+
+      if (keys.size() == multiwriteSize) {
+        try {
+          client.multiWrite(requests, multiwriteSize);
+        } catch(RAMCloud::ClientException& e) {
+          fprintf(stderr, "RAMCloud exception: %s\n", e.str().c_str());
+          return 1;
+        }
+        
+        stats.objectsLoaded += multiwriteSize;
+
+        keys.clear();
+        values.clear();
+      }
+    }
+
+    if (keys.size() > 0) {
+      try {
+        client.multiWrite(requests, keys.size());
+      } catch(RAMCloud::ClientException& e) {
+        fprintf(stderr, "RAMCloud exception: %s\n", e.str().c_str());
+        return 1;
+      }
+
+      stats.objectsLoaded += keys.size();
+
+      keys.clear();
+      values.clear();
+    }
+
+    stats.filesLoaded++;
+
+    statsReporter.join();
   }
 
   return 0;
