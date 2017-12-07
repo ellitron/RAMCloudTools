@@ -42,7 +42,7 @@ done
 
 # Create a new window with the appropriate number of panes
 tmux new-window -n SnapshotLoader
-for (( i=0; i<$fileCounts-1; i++ ))
+for (( i=0; i<$fileCount-1; i++ ))
 do
   tmux split-window -h
   tmux select-layout tiled > /dev/null
