@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# ./SnapshotGzStdInLoaderLauncher.sh /path/to/snapshot/ coordinatorLocator
+# ./SnapshotGzStdInLoaderLauncher.sh /path/to/snapshot/ coordinatorLocator tableName
 #
 # Loads the snapshot located in /path/to/snapshot into the RAMCloud cluster
 # managed by the coordinator with address coordinatorLocator.
@@ -8,6 +8,7 @@
 # Argument parameters
 snapshotDir=$1
 coordLoc=$2
+tableName=$3
 
 # Edit these parameters as necessary
 serverSpan=64
@@ -54,6 +55,6 @@ for file in $fileList
 do
   tmux send-keys -t SnapshotLoader.$i "ssh ${hosts[i]}" C-m
   tmux send-keys -t SnapshotLoader.$i "cd $snapshotLoaderDir" C-m
-  tmux send-keys -t SnapshotLoader.$i "gunzip -c ${snapshotDir}/$file | ./SnapshotLoader -C $coordLoc --serverSpan $serverSpan --reportInterval $reportInterval --reportFormat $reportFormat" C-m
+  tmux send-keys -t SnapshotLoader.$i "gunzip -c ${snapshotDir}/$file | ./SnapshotLoader -C $coordLoc --tableName $tableName --serverSpan $serverSpan --reportInterval $reportInterval --reportFormat $reportFormat" C-m
   (( i++ ))
 done
