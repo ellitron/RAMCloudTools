@@ -47,6 +47,7 @@ try
 {
   string imageFilePath;
   long objectsPerFile;
+  long bytesPerFile;
   string outputDir;
   string splitSuffixFormat;
 
@@ -64,8 +65,11 @@ try
      ProgramOptions::value<string>(&imageFilePath),
      "Path to the image file to split.")
     ("objectsPerFile",
-     ProgramOptions::value<long>(&objectsPerFile),
+     ProgramOptions::value<long>(&objectsPerFile)->default_value(0),
      "How many objects to pack into a partition.")
+    ("bytesPerFile",
+     ProgramOptions::value<long>(&bytesPerFile)->default_value(0),
+     "How many bytes to pack into a partition.")
     ("outputDir",
      ProgramOptions::value<string>(&outputDir),
      "Directory to write split files.")
@@ -77,9 +81,10 @@ try
   
   OptionParser optionParser(clientOptions, argc, argv);
 
-  printf("TableImageSplitter: {imageFile: %s, objectsPerFile: %u, "
-      "outputDir: %s, splitSuffixFormat: %s}\n", imageFilePath.c_str(), 
-      objectsPerFile, outputDir.c_str(), splitSuffixFormat.c_str());
+  printf("TableImageSplitter: {imageFile: %s, objectsPerFile: %lu, "
+      "bytesPerFile: %lu, outputDir: %s, splitSuffixFormat: %s}\n", 
+      imageFilePath.c_str(), objectsPerFile, bytesPerFile, outputDir.c_str(), 
+      splitSuffixFormat.c_str());
 
   // Open image file for splitting. 
   std::ifstream inFile;
@@ -95,7 +100,8 @@ try
   long partitionCount = 0; // How many partitions we've created so far.
   long objCount = 0; // How many objects are in the current partition.
   long totalObjCount = 0; // How many objects have we copied in total.
-  long byteCount = 0; // How many total bytes have we copied so far.
+  long byteCount = 0; // How many bytes are in the current partition.
+  long totalObjByteCount = 0; // How many total bytes have we copied so far.
 
   // Open initial output file for first partition.
   char *outFileName;
@@ -127,22 +133,42 @@ try
 
     objCount++;
     totalObjCount++;
-    byteCount += keyLength + dataLength;
+    byteCount += sizeof(uint32_t) + keyLength + sizeof(uint32_t) + dataLength;
+    totalObjByteCount += keyLength + dataLength;
 
     // If we've filled up the partition, close it and start a new one.
-    if (objCount == objectsPerFile) {
-      outFile.close();
-      partitionCount++;
-      printf("Done\n");
+    if (objectsPerFile > 0) {
+      if (objCount == objectsPerFile) {
+        outFile.close();
+        partitionCount++;
+        printf("Done\n");
 
-      asprintf(&outFileName, 
-          (outputDir + "/" + imageFileName + splitSuffixFormat).c_str(),
-          partitionCount); 
-      outFile.open(outFileName, std::ios::binary);
-      printf("Creating %s... ", outFileName);
-      free(outFileName);
-      
-      objCount = 0;
+        asprintf(&outFileName, 
+            (outputDir + "/" + imageFileName + splitSuffixFormat).c_str(),
+            partitionCount); 
+        outFile.open(outFileName, std::ios::binary);
+        printf("Creating %s... ", outFileName);
+        free(outFileName);
+        
+        objCount = 0;
+        byteCount = 0;
+      }
+    } else {
+      if (byteCount > bytesPerFile) {
+        outFile.close();
+        partitionCount++;
+        printf("Done\n");
+
+        asprintf(&outFileName, 
+            (outputDir + "/" + imageFileName + splitSuffixFormat).c_str(),
+            partitionCount); 
+        outFile.open(outFileName, std::ios::binary);
+        printf("Creating %s... ", outFileName);
+        free(outFileName);
+        
+        objCount = 0;
+        byteCount = 0;
+      }
     }
   }
 
@@ -152,8 +178,8 @@ try
 
   inFile.close();
 
-  printf("Split table image into %u partitions. Total objects: %u. Total "
-      "bytes: %u\n", partitionCount, totalObjCount, byteCount);
+  printf("Split table image into %lu partitions. Total objects: %lu. Total "
+      "bytes: %lu\n", partitionCount, totalObjCount, totalObjByteCount);
 
   return 0;
 } catch (Exception& e) {
