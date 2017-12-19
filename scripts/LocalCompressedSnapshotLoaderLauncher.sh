@@ -26,14 +26,14 @@ done
 
 # Create a new window with the appropriate number of panes
 tmux new-window -n LocalSnapshotLoader
-for (( i=0; i<${#host[@]}-1; i++ ))
+for (( i=0; i<${#hosts[@]}-1; i++ ))
 do
   tmux split-window -h
   tmux select-layout tiled > /dev/null
 done
 
 # Setup the panes for loading but stop before executing TableUploader
-for (( i=0; i<${#host[@]}-1; i++ ))
+for (( i=0; i<${#hosts[@]}; i++ ))
 do
   # Extract tableName from the file name
   tmux send-keys -t LocalSnapshotLoader.$i "ssh ${hosts[i]}" C-m
