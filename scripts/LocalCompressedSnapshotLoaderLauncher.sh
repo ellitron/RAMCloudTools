@@ -25,7 +25,7 @@ do
 done
 
 # Create a new window with the appropriate number of panes
-tmux new-window -n SnapshotLoader
+tmux new-window -n LocalSnapshotLoader
 for (( i=0; i<${#host[@]}-1; i++ ))
 do
   tmux split-window -h
@@ -36,7 +36,7 @@ done
 for (( i=0; i<${#host[@]}-1; i++ ))
 do
   # Extract tableName from the file name
-  tmux send-keys -t SnapshotLoader.$i "ssh ${hosts[i]}" C-m
-  tmux send-keys -t SnapshotLoader.$i "cd $snapshotLoaderDir" C-m
-  tmux send-keys -t SnapshotLoader.$i "for file in \$(ls $localSnapshotDir); do tableName=\${file%*.img.*.gz}; gunzip -c ${localSnapshotDir}/\$file | ./SnapshotLoader -C $coordLoc --tableName \$tableName --serverSpan $serverSpan --reportInterval $reportInterval --reportFormat $reportFormat; done" C-m
+  tmux send-keys -t LocalSnapshotLoader.$i "ssh ${hosts[i]}" C-m
+  tmux send-keys -t LocalSnapshotLoader.$i "cd $snapshotLoaderDir" C-m
+  tmux send-keys -t LocalSnapshotLoader.$i "for file in \$(ls $localSnapshotDir); do tableName=\${file%*.img.*.gz}; gunzip -c ${localSnapshotDir}/\$file | ./SnapshotLoader -C $coordLoc --tableName \$tableName --serverSpan $serverSpan --reportInterval $reportInterval --reportFormat $reportFormat; done" C-m
 done
