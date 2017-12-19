@@ -38,5 +38,5 @@ do
   # Extract tableName from the file name
   tmux send-keys -t LocalSnapshotLoader.$i "ssh ${hosts[i]}" C-m
   tmux send-keys -t LocalSnapshotLoader.$i "cd $snapshotLoaderDir" C-m
-  tmux send-keys -t LocalSnapshotLoader.$i "for file in \$(ls $localSnapshotDir); do tableName=\${file%*.img.*.gz}; gunzip -c ${localSnapshotDir}/\$file | ./SnapshotLoader -C $coordLoc --tableName \$tableName --serverSpan $serverSpan --reportInterval $reportInterval --reportFormat $reportFormat; done" C-m
+  tmux send-keys -t LocalSnapshotLoader.$i "for file in \$(ls $localSnapshotDir); do tableName=\${file%.*.img.gz}; gunzip -c ${localSnapshotDir}/\$file | ./SnapshotLoader -C $coordLoc --tableName \$tableName --serverSpan $serverSpan --reportInterval $reportInterval --reportFormat $reportFormat; done" C-m
 done
