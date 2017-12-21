@@ -9,7 +9,7 @@ coordLoc=$1
 localSnapshotDir=/local/rcbackup/snapshot
 reportFormat="OFDT"
 reportInterval=2
-serverSpan=64
+serverSpan=80
 
 # Directory of SnapshotLoader.
 pushd `dirname $0`/.. > /dev/null                                               
@@ -18,7 +18,7 @@ popd > /dev/null
 
 # Servers from which to load snapshot parts.
 i=0
-for j in {01..64}
+for j in {01..80}
 do
   hosts[i]=rc$j
   (( i++ ))
@@ -38,5 +38,5 @@ do
   # Extract tableName from the file name
   tmux send-keys -t LocalSnapshotLoader.$i "ssh ${hosts[i]}" C-m
   tmux send-keys -t LocalSnapshotLoader.$i "cd $snapshotLoaderDir" C-m
-  tmux send-keys -t LocalSnapshotLoader.$i "for file in \$(ls $localSnapshotDir); do tableName=\${file%.*.img.gz}; gunzip -c ${localSnapshotDir}/\$file | ./SnapshotLoader -C $coordLoc --tableName \$tableName --serverSpan $serverSpan --reportInterval $reportInterval --reportFormat $reportFormat; done" C-m
+  tmux send-keys -t LocalSnapshotLoader.$i "time for file in \$(ls $localSnapshotDir); do tableName=\${file%.img.*.gz}; gunzip -c ${localSnapshotDir}/\$file | ./SnapshotLoader -C $coordLoc --tableName \$tableName --serverSpan $serverSpan --reportInterval $reportInterval --reportFormat $reportFormat; done" C-m
 done
