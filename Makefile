@@ -15,7 +15,8 @@ TARGETS :=  TableDownloader \
             GetMetrics \
             rcstat \
             TableImageSplitter \
-	    ImageFileHashPartitioner
+	    ImageFileHashPartitioner \
+	    ImageFileObjectCounter
 
 all: $(TARGETS)
 
