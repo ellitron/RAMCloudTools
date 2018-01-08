@@ -96,10 +96,10 @@ try
 
     char *outFileName;
     asprintf(&outFileName, (outputDir + 
-          "/tablet%4d(tableId:%lu,range:0x%16lx-0x%16lx).img").c_str(), 
+          "/tablet%04d(tableId:%lu,range:0x%016lx-0x%016lx).img").c_str(), 
         i + 1, tableId, startKeyHash, endKeyHash); 
     outFiles[i].open(outFileName, std::ios::binary);
-    printf("Creating %s... ", outFileName);
+    printf("Creating %s ...\n", outFileName);
     free(outFileName);
   }
 
@@ -138,7 +138,7 @@ try
     outFiles[i].close();
   }
 
-  printf("Partitioned table image into %lu tablets.\n", serverSpan);
+  printf("Done! Partitioned table image into %lu tablets.\n", serverSpan);
 
   return 0;
 } catch (Exception& e) {
