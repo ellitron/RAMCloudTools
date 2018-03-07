@@ -37,7 +37,7 @@
 using namespace RAMCloud;
 
 /**
- * A utility for counting the number of objects in an image file.
+ * A utility for gathering useful stats on an image file.
  */
 int
 main(int argc, char *argv[])
@@ -52,26 +52,51 @@ try
   // Need external context to set log levels with OptionParser
   Context context(false);
 
-  OptionsDescription clientOptions("ImageFileObjectCounter");
+  OptionsDescription clientOptions("ImageFileStats");
   
   OptionParser optionParser(clientOptions, argc, argv);
 
-  uint64_t objectCount = 0;
+  uint64_t totalObjectCount = 0;
+  uint64_t totalKeySize = 0;
+  uint64_t totalValueSize = 0;
+  uint64_t totalFileSize = 0;
+  uint64_t totalObjectSize = 0;
+  uint64_t totalMetadataSize = 0;
   char lenBuffer[sizeof(uint32_t)];
   while(std::cin.read(lenBuffer, sizeof(lenBuffer))) {
+    totalMetadataSize += sizeof(lenBuffer);
+    totalFileSize += sizeof(lenBuffer);
+
     uint32_t keyLength = *((uint32_t*) lenBuffer); 
     char keyBuffer[keyLength];
     std::cin.read(keyBuffer, keyLength);
-    
+    totalKeySize += (uint64_t)keyLength;
+    totalObjectSize += (uint64_t)keyLength;
+    totalFileSize += (uint64_t)keyLength;
+
     std::cin.read(lenBuffer, sizeof(lenBuffer));
+    totalMetadataSize += sizeof(lenBuffer);
+    totalFileSize += sizeof(lenBuffer);
+
     uint32_t dataLength = *((uint32_t*) lenBuffer);
     char dataBuffer[dataLength];
     std::cin.read(dataBuffer, dataLength);
+    totalValueSize += (uint64_t)dataLength;
+    totalObjectSize += (uint64_t)dataLength;
+    totalFileSize += (uint64_t)dataLength;
 
-    objectCount++;
+    totalObjectCount++;
   }
 
-  printf("Total Objects: %lu\n", objectCount);
+  printf("Image File Stats:\n");
+  printf("  Total File Size: %lu\n", totalFileSize);
+  printf("    File Metadata Bytes: %lu, (%.1f%)\n", totalMetadataSize, 100.0 * (double)totalMetadataSize / (double)totalFileSize);
+  printf("    Raw Object Bytes: %lu, (%.1f%)\n", totalObjectSize, 100.0 * (double)totalObjectSize / (double)totalFileSize);
+  printf("      Total Key Bytes: %lu, (%.1f%)\n", totalKeySize, 100.0 * (double)totalKeySize / (double)totalObjectSize);
+  printf("      Total Value Bytes: %lu, (%.1f%)\n", totalValueSize, 100.0 * (double)totalValueSize / (double)totalObjectSize);
+  printf("  Total Object Count: %lu\n", totalObjectCount);
+  printf("  Average Key Size: %lu\n", totalKeySize / totalObjectCount);
+  printf("  Average Value Size: %lu\n", totalValueSize / totalObjectCount);
 
   return 0;
 } catch (Exception& e) {

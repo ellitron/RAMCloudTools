@@ -16,7 +16,7 @@ TARGETS :=  TableDownloader \
             rcstat \
             TableImageSplitter \
 	    ImageFileHashPartitioner \
-	    ImageFileObjectCounter
+	    ImageFileStats
 
 all: $(TARGETS)
 
