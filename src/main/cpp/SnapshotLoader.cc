@@ -557,16 +557,18 @@ try
 
       stats.bytesReadFromDisk += sizeof(lenBuffer)*2 + keyLength + dataLength;
 
-      objects[keys.size() - 1].construct( tableId,
-                                    (const void*) keys.back().data(),
-                                    keyLength,
-                                    (const void*) values.back().data(),
-                                    dataLength );
-      requests[keys.size() - 1] = objects[keys.size() - 1].get();
-
-      stats.bytesWrittenToRAMCloud += keyLength + dataLength;
-
       if (keys.size() == multiwriteSize) {
+        for (int i = 0; i < keys.size(); i++) {
+          objects[i].construct( tableId,
+                                (const void*) keys[i].data(),
+                                keys[i].size(),
+                                (const void*) values[i].data(),
+                                values[i].size() );
+          requests[i] = objects[i].get();
+
+          stats->bytesWrittenToRAMCloud += keys[i].size() + values[i].size();
+        }
+
         try {
           client.multiWrite(requests, multiwriteSize);
         } catch(RAMCloud::ClientException& e) {
@@ -582,6 +584,17 @@ try
     }
 
     if (keys.size() > 0) {
+      for (int i = 0; i < keys.size(); i++) {
+        objects[i].construct( tableId,
+                              (const void*) keys[i].data(),
+                              keys[i].size(),
+                              (const void*) values[i].data(),
+                              values[i].size() );
+        requests[i] = objects[i].get();
+
+        stats->bytesWrittenToRAMCloud += keys[i].size() + values[i].size();
+      }
+
       try {
         client.multiWrite(requests, keys.size());
       } catch(RAMCloud::ClientException& e) {
