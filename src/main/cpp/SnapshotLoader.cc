@@ -566,7 +566,7 @@ try
                                 values[i].size() );
           requests[i] = objects[i].get();
 
-          stats->bytesWrittenToRAMCloud += keys[i].size() + values[i].size();
+          stats.bytesWrittenToRAMCloud += keys[i].size() + values[i].size();
         }
 
         try {
@@ -592,7 +592,7 @@ try
                               values[i].size() );
         requests[i] = objects[i].get();
 
-        stats->bytesWrittenToRAMCloud += keys[i].size() + values[i].size();
+        stats.bytesWrittenToRAMCloud += keys[i].size() + values[i].size();
       }
 
       try {
