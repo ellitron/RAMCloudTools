@@ -6,11 +6,11 @@
 coordLoc=$1
 
 # Edit these parameters as necessary
-localSnapshotDir=/local/rcimgs/ldbc_snb_sf1000_vertexTable
-tableName=ldbc_snb_sf1000_vertexTable
+localSnapshotDir=/datasets/ldbc-snb/ldbc_snb_interactive_validation/neo4j/torcdb_ramcloud_image_files/tablets-90/vertexTable
+tableName=neo4j_validation_set_vertexTable
 reportFormat="OFDT"
 reportInterval=2
-serverSpan=80
+serverSpan=90
 
 # Directory of SnapshotLoader.
 pushd `dirname $0`/.. > /dev/null                                               
@@ -19,7 +19,7 @@ popd > /dev/null
 
 # Servers from which to load snapshot parts.
 i=0
-for j in {01..80}
+for j in {01..01}
 do
   hosts[i]=rc$j
   (( i++ ))
