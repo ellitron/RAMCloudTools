@@ -4,10 +4,10 @@
 
 # Script parameters
 coordLoc=$1
+localSnapshotDir=$2
+tableName=$3
 
 # Edit these parameters as necessary
-localSnapshotDir=/datasets/ldbc-snb/ldbc_snb_interactive_validation/neo4j/torcdb_ramcloud_image_files/tablets-90/vertexTable
-tableName=neo4j_validation_set_vertexTable
 reportFormat="OFDT"
 reportInterval=2
 serverSpan=90
