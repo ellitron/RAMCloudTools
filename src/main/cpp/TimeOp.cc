@@ -53,7 +53,7 @@ try
     // need external context to set log levels with OptionParser
     Context context(false);
 
-    OptionsDescription clientOptions("TableDownloader");
+    OptionsDescription clientOptions("TimeOp");
     clientOptions.add_options()
 
         // These first two options are currently ignored. They're here so that
