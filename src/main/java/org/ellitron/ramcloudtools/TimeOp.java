@@ -2,7 +2,6 @@ package org.ellitron.ramcloudtools;
 
 import edu.stanford.ramcloud.*;
 import edu.stanford.ramcloud.ClientException.*;
-import edu.stanford.ramcloud.transactions.*;
 
 import org.apache.log4j.Logger;
 
