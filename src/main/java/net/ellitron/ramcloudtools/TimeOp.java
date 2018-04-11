@@ -1,4 +1,4 @@
-package org.ellitron.ramcloudtools;
+package net.ellitron.ramcloudtools;
 
 import edu.stanford.ramcloud.*;
 import edu.stanford.ramcloud.ClientException.*;

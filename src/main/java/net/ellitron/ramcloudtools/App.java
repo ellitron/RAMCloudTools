@@ -1,4 +1,4 @@
-package org.ellitron.ramcloudtools;
+package net.ellitron.ramcloudtools;
 
 /**
  * Hello world!
