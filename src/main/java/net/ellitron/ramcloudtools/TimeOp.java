@@ -10,7 +10,9 @@ import java.util.Map;
 import org.docopt.Docopt;
 
 /**
- * Hello world!
+ * TimeOp is a utility for timing various RAMCloud operations. This version is
+ * implemented in Java, and tests the performance of the RAMCloud Java API
+ * implementation.
  *
  */
 public class TimeOp 
