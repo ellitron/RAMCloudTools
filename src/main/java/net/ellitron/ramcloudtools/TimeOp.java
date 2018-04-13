@@ -68,6 +68,7 @@ public class TimeOp
             
                 System.out.println(String.format("Time: %dus (%d exceptions caught)", (endTime - startTime)/1000l, exceptionCount));
                 tx.commitAndSync();
+                tx.close();
               } else {
                 long startTime = System.nanoTime();
                 try { 
