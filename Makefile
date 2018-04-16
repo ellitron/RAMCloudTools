@@ -1,4 +1,4 @@
-RAMCLOUD_OBJ_DIR := $(RAMCLOUD_HOME)/obj.master
+RAMCLOUD_OBJ_DIR := $(RAMCLOUD_HOME)/obj.jni-updates
 
 TARGETS :=  TableDownloader \
             TableUploader \
