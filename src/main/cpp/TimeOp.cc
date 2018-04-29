@@ -69,7 +69,7 @@ try
 
         ("op",
          ProgramOptions::value<string>(&op),
-         "Name of the operation to time. Value can be one of: read, readnoexist, txread, txreadnoexist, txreadnoexistcache.")
+         "Name of the operation to time. Value can be one of: read, readnoexist, txread, txread10, txreadnoexist, txreadnoexistcache.")
         ("count",
          ProgramOptions::value<int>(&count),
          "Number of times to execute the operation.");
@@ -127,6 +127,37 @@ try
         } 
         uint64_t end = Cycles::rdtsc();
         LOG(NOTICE, "Op took %d microseconds.", Cycles::toMicroseconds(end-start));
+      }
+
+      client.dropTable("test");
+
+    } else if (op == "txread10") {
+      uint64_t tableId;
+      tableId = client.createTable("test");        
+
+      char randomValue[100]; 
+      char key[30];
+      for (int i = 0; i < 10; i++) {
+        sprintf(key, "%d", i);
+        client.write(tableId, key, 30, randomValue, 100);
+      }
+
+      for (int i = 0; i < count; i++) {
+        LOG(NOTICE, "TX BEGIN");
+        Transaction tx(&client);
+        Buffer value;
+
+        for (int i = 0; i < 10; i++) {        
+          sprintf(key, "%d", i);
+          uint64_t start = Cycles::rdtsc();
+          try {
+            tx.read(tableId, key, 30, &value);
+          } catch (RAMCloud::Exception& e) {
+          } 
+          uint64_t end = Cycles::rdtsc();
+          LOG(NOTICE, "TX read on key %s took %d microseconds.", key, Cycles::toMicroseconds(end-start));
+        }
+        LOG(NOTICE, "TX END");
       }
 
       client.dropTable("test");
