@@ -13,6 +13,7 @@ TARGETS :=  TableDownloader \
             GetStats \
             GetMetrics \
             rcstat \
+	    rcperf \
             TableImageSplitter \
 	    ImageFileHashPartitioner \
 	    ImageFileStats
