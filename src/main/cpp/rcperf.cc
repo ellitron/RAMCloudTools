@@ -190,55 +190,136 @@ try
       }
     }
 
-    if (op.compare("read") == 0) {
-      std::vector<uint32_t> key_sizes; 
-      std::vector<uint32_t> value_sizes; 
+    std::vector<uint32_t> key_sizes; 
+    std::vector<uint32_t> value_sizes; 
+    std::vector<uint32_t> multi_sizes;
+    std::vector<uint32_t> server_sizes;
 
-      if (key_points > 1) {
-        if (key_points_mode.compare("linear") == 0) {
-          uint32_t step_size = 
-            (key_range_end - key_range_start) / (key_points - 1);
+    if (key_points > 1) {
+      if (key_points_mode.compare("linear") == 0) {
+        uint32_t step_size = 
+          (key_range_end - key_range_start) / (key_points - 1);
 
-          for (int i = key_range_start; i <= key_range_end; i += step_size) 
-            key_sizes.push_back(i);
-        } else if (key_points_mode.compare("geometric") == 0) {
-          double c = pow(10, log10((double)key_range_end/(double)key_range_start) / (double)(key_points - 1));
-          for (int i = key_range_start; i <= key_range_end; i *= c)
-            key_sizes.push_back(i);
-        } else {
-          printf("ERROR: Unknown points mode: %s\n", key_points_mode.c_str());
-          return 1;
-        }
+        for (int i = key_range_start; i <= key_range_end; i += step_size) 
+          key_sizes.push_back(i);
+      } else if (key_points_mode.compare("geometric") == 0) {
+        double c = pow(10, log10((double)key_range_end/(double)key_range_start) / (double)(key_points - 1));
+        for (int i = key_range_start; i <= key_range_end; i *= c)
+          key_sizes.push_back(i);
       } else {
-        key_sizes.push_back(key_range_start);
+        printf("ERROR: Unknown points mode: %s\n", key_points_mode.c_str());
+        return 1;
       }
+    } else {
+      key_sizes.push_back(key_range_start);
+    }
+
+    if (value_points > 1) {
+      if (value_points_mode.compare("linear") == 0) {
+        uint32_t step_size = 
+          (value_range_end - value_range_start) / (value_points - 1);
+
+        for (int i = value_range_start; i <= value_range_end; i += step_size) 
+          value_sizes.push_back(i);
+      } else if (value_points_mode.compare("geometric") == 0) {
+        double c = pow(10, log10((double)value_range_end/(double)value_range_start) / (double)(value_points - 1));
+        for (int i = value_range_start; i <= value_range_end; i *= c)
+          value_sizes.push_back(i);
+      } else {
+        printf("ERROR: Unknown points mode: %s\n", value_points_mode.c_str());
+        return 1;
+      }
+    } else {
+      value_sizes.push_back(value_range_start);
+    }
+
+    if (multi_points > 1) {
+      if (multi_points_mode.compare("linear") == 0) {
+        uint32_t step_size = 
+          (multi_range_end - multi_range_start) / (multi_points - 1);
+
+        for (int i = multi_range_start; i <= multi_range_end; i += step_size) 
+          multi_sizes.push_back(i);
+      } else if (multi_points_mode.compare("geometric") == 0) {
+        double c = pow(10, log10((double)multi_range_end/(double)multi_range_start) / (double)(multi_points - 1));
+        for (int i = multi_range_start; i <= multi_range_end; i *= c)
+          multi_sizes.push_back(i);
+      } else {
+        printf("ERROR: Unknown points mode: %s\n", multi_points_mode.c_str());
+        return 1;
+      }
+    } else {
+      multi_sizes.push_back(multi_range_start);
+    }
+
+    if (server_points > 1) {
+      if (server_points_mode.compare("linear") == 0) {
+        uint32_t step_size = 
+          (server_range_end - server_range_start) / (server_points - 1);
+
+        for (int i = server_range_start; i <= server_range_end; i += step_size) 
+          server_sizes.push_back(i);
+      } else if (server_points_mode.compare("geometric") == 0) {
+        double c = pow(10, log10((double)server_range_end/(double)server_range_start) / (double)(server_points - 1));
+        for (int i = server_range_start; i <= server_range_end; i *= c)
+          server_sizes.push_back(i);
+      } else {
+        printf("ERROR: Unknown points mode: %s\n", server_points_mode.c_str());
+        return 1;
+      }
+    } else {
+      server_sizes.push_back(server_range_start);
+    }
+
+    if (op.compare("read") == 0) {
+      uint64_t tableId = client.createTable("test");
 
       for (int i = 0; i < key_sizes.size(); i++) {
-        printf("key_size: %d\n", key_sizes[i]);
-      }
+        for (int j = 0; j < value_sizes.size(); j++) {
+          uint32_t key_size = key_sizes[i];
+          uint32_t value_size = value_sizes[j];
+          printf("Testing: key_size: %dB, value_size: %dB\n", key_size, value_size);
 
-      if (value_points > 1) {
-        if (value_points_mode.compare("linear") == 0) {
-          uint32_t step_size = 
-            (value_range_end - value_range_start) / (value_points - 1);
+          char randomKey[key_size];
+          char randomValue[value_size];
 
-          for (int i = value_range_start; i <= value_range_end; i += step_size) 
-            value_sizes.push_back(i);
-        } else if (value_points_mode.compare("geometric") == 0) {
-          double c = pow(10, log10((double)value_range_end/(double)value_range_start) / (double)(value_points - 1));
-          for (int i = value_range_start; i <= value_range_end; i *= c)
-            value_sizes.push_back(i);
-        } else {
-          printf("ERROR: Unknown points mode: %s\n", value_points_mode.c_str());
-          return 1;
+          client.write(tableId, randomKey, key_size, randomValue, value_size);
+
+          Buffer value;
+          uint64_t latency[samples_per_point];
+          for (int k = 0; k < samples_per_point; k++) {
+            bool exists;
+            uint64_t start = Cycles::rdtsc();
+            client.read(tableId, randomKey, key_size, &value, NULL, NULL, &exists);
+            uint64_t end = Cycles::rdtsc();
+            latency[k] = Cycles::toNanoseconds(end-start);
+          }
+
+          std::vector<uint64_t> latencyVec(latency, latency+samples_per_point);
+
+          std::sort(latencyVec.begin(), latencyVec.end());
+
+          uint64_t sum = 0;
+          for (int i = 0; i < samples_per_point; i++) {
+            sum += latencyVec[i];
+          }
+
+          printf("%12.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12.3f %12.3f\n", 
+              latencyVec[samples_per_point*1/100]/1000.0,
+              latencyVec[samples_per_point*2/100]/1000.0,
+              latencyVec[samples_per_point*5/100]/1000.0,
+              latencyVec[samples_per_point*10/100]/1000.0,
+              latencyVec[samples_per_point*25/100]/1000.0,
+              latencyVec[samples_per_point*50/100]/1000.0,
+              latencyVec[samples_per_point*75/100]/1000.0,
+              latencyVec[samples_per_point*90/100]/1000.0,
+              latencyVec[samples_per_point*95/100]/1000.0,
+              latencyVec[samples_per_point*98/100]/1000.0,
+              latencyVec[samples_per_point*99/100]/1000.0);
         }
-      } else {
-        value_sizes.push_back(value_range_start);
       }
 
-      for (int i = 0; i < value_sizes.size(); i++) {
-        printf("value_size: %d\n", value_sizes[i]);
-      }
+      client.dropTable("test");
     }
   
     return 0;
