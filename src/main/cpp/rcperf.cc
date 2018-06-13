@@ -98,6 +98,10 @@ try
     uint32_t value_range_end = 100;
     uint32_t value_points = 1;
     std::string value_points_mode = "linear";
+    uint32_t dss_range_start = 100;
+    uint32_t dss_range_end = 100;
+    uint32_t dss_points = 1;
+    std::string dss_points_mode = "linear";
     uint32_t multi_range_start = 32;
     uint32_t multi_range_end = 32;
     uint32_t multi_points = 1;
@@ -164,6 +168,21 @@ try
           } else if (var_name.compare("value_points_mode") == 0) {
             std::string var_value = line.substr(line.find_last_of(' ') + 1, line.length());
             value_points_mode = var_value;
+          } else if (var_name.compare("dss_range_start") == 0) {
+            std::string var_value = line.substr(line.find_last_of(' ') + 1, line.length());
+            uint32_t var_int_value = std::stoi(var_value);
+            dss_range_start = var_int_value;
+          } else if (var_name.compare("dss_range_end") == 0) {
+            std::string var_value = line.substr(line.find_last_of(' ') + 1, line.length());
+            uint32_t var_int_value = std::stoi(var_value);
+            dss_range_end = var_int_value;
+          } else if (var_name.compare("dss_points") == 0) {
+            std::string var_value = line.substr(line.find_last_of(' ') + 1, line.length());
+            uint32_t var_int_value = std::stoi(var_value);
+            dss_points = var_int_value;
+          } else if (var_name.compare("dss_points_mode") == 0) {
+            std::string var_value = line.substr(line.find_last_of(' ') + 1, line.length());
+            dss_points_mode = var_value;
           } else if (var_name.compare("multi_range_start") == 0) {
             std::string var_value = line.substr(line.find_last_of(' ') + 1, line.length());
             uint32_t var_int_value = std::stoi(var_value);
@@ -251,6 +270,25 @@ try
         }
       } else {
         value_sizes.push_back(value_range_start);
+      }
+
+      if (dss_points > 1) {
+        if (dss_points_mode.compare("linear") == 0) {
+          uint32_t step_size = 
+            (dss_range_end - dss_range_start) / (dss_points - 1);
+
+          for (int i = dss_range_start; i <= dss_range_end; i += step_size) 
+            dss_sizes.push_back(i);
+        } else if (dss_points_mode.compare("geometric") == 0) {
+          double c = pow(10, log10((double)dss_range_end/(double)dss_range_start) / (double)(dss_points - 1));
+          for (int i = dss_range_start; i <= dss_range_end; i *= c)
+            dss_sizes.push_back(i);
+        } else {
+          printf("ERROR: Unknown points mode: %s\n", dss_points_mode.c_str());
+          return 1;
+        }
+      } else {
+        dss_sizes.push_back(dss_range_start);
       }
 
       if (multi_points > 1) {
@@ -464,6 +502,109 @@ try
                   "95th",
                   "98th",
                   "99th");
+
+              // Construct keys.
+              char keys[multi_size][key_size];
+              memset(keys, 0, multi_size * key_size);
+              for (int i = 0; i < multi_size; i++) {
+                sprintf(keys[i], "%d", i);
+              }
+                
+              for (int vs_idx = 0; vs_idx < value_sizes.size(); vs_idx++) {
+                uint32_t value_size = value_sizes[vs_idx];
+                printf("Multiread Test: server_size: %d, multi_size: %d, key_size: %dB, value_size: %dB\n", server_size, multi_size, key_size, value_size);
+
+                // Write value_size data into objects.
+                for (int i = 0; i < multi_size; i++) {
+                  char randomValue[value_size];
+                  client.write(tableId, keys[i], key_size, randomValue, value_size);
+                }
+
+                // Prepare multiread data structures.
+                MultiReadObject requestObjects[multi_size];
+                MultiReadObject* requests[multi_size];
+                Tub<ObjectBuffer> values[multi_size];
+
+                for (int i = 0; i < multi_size; i++) {
+                  requestObjects[i] = MultiReadObject(tableId, keys[i], 
+                      key_size, &values[i]);
+                  requests[i] = &requestObjects[i];
+                }
+
+                uint64_t latency[samples_per_point];
+                for (int i = 0; i < samples_per_point; i++) {
+                  uint64_t start = Cycles::rdtsc();
+                  client.multiRead(requests, multi_size);
+                  uint64_t end = Cycles::rdtsc();
+                  latency[i] = Cycles::toNanoseconds(end-start);
+                }
+
+                std::vector<uint64_t> latencyVec(latency, latency+samples_per_point);
+
+                std::sort(latencyVec.begin(), latencyVec.end());
+
+                uint64_t sum = 0;
+                for (int i = 0; i < samples_per_point; i++) {
+                  sum += latencyVec[i];
+                }
+
+                fprintf(datFile, "%12d %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f\n", 
+                    value_size,
+                    latencyVec[samples_per_point*1/100]/1000.0,
+                    latencyVec[samples_per_point*2/100]/1000.0,
+                    latencyVec[samples_per_point*5/100]/1000.0,
+                    latencyVec[samples_per_point*10/100]/1000.0,
+                    latencyVec[samples_per_point*25/100]/1000.0,
+                    latencyVec[samples_per_point*50/100]/1000.0,
+                    latencyVec[samples_per_point*75/100]/1000.0,
+                    latencyVec[samples_per_point*90/100]/1000.0,
+                    latencyVec[samples_per_point*95/100]/1000.0,
+                    latencyVec[samples_per_point*98/100]/1000.0,
+                    latencyVec[samples_per_point*99/100]/1000.0);
+              } // vs_idx
+
+              fclose(datFile);
+            } // ks_idx
+          } // ms_idx
+
+          client.dropTable("test");
+        } // sv_idx
+      } else if (op.compare("multiread_fixeddss") == 0) {
+        for (int sv_idx = 0; sv_idx < server_sizes.size(); sv_idx++) {
+          uint32_t server_size = server_sizes[sv_idx];
+
+          uint64_t tableId = client.createTable("test", server_size);
+
+          for (int dss_idx = 0; dss_idx < dss_sizes.size(); dss_idx++) {
+            uint32_t dss_size = dss_sizes[dss_idx];
+
+            // Open data file for writing.
+            FILE * datFile;
+            char filename[128];
+            sprintf(filename, "multiread_fixeddss.spp_%d.sv_%d.dss_%d.dat", samples_per_point, server_size, dss_size);
+            datFile = fopen(filename, "w");
+            fprintf(datFile, "%12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s\n", 
+                "MultiSize",
+                "1th",
+                "2th",
+                "5th",
+                "10th",
+                "25th",
+                "50th",
+                "75th",
+                "90th",
+                "95th",
+                "98th",
+                "99th");
+
+
+            for (int ms_idx = 0; ms_idx < multi_sizes.size(); ms_idx++) {
+              uint32_t multi_size = multi_sizes[ms_idx];
+
+              // Compute key_size and value_size.
+              uint32_t key_size = 30; // Use fixed 30B keys.
+              uint32_t value_size = (dss_size - key_size) / multi_size;
+
 
               // Construct keys.
               char keys[multi_size][key_size];
