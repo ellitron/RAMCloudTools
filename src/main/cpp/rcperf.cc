@@ -231,6 +231,7 @@ try
 
       std::vector<uint32_t> key_sizes; 
       std::vector<uint32_t> value_sizes; 
+      std::vector<uint32_t> dss_sizes; 
       std::vector<uint32_t> multi_sizes;
       std::vector<uint32_t> server_sizes;
 
@@ -597,14 +598,14 @@ try
                 "98th",
                 "99th");
 
-
             for (int ms_idx = 0; ms_idx < multi_sizes.size(); ms_idx++) {
               uint32_t multi_size = multi_sizes[ms_idx];
+
+              printf("Multiread Fixed DSS Test: server_size: %d, dss_size: %d, multi_size: %d\n", server_size, dss_size, multi_size);
 
               // Compute key_size and value_size.
               uint32_t key_size = 30; // Use fixed 30B keys.
               uint32_t value_size = (dss_size - key_size) / multi_size;
-
 
               // Construct keys.
               char keys[multi_size][key_size];
@@ -612,63 +613,58 @@ try
               for (int i = 0; i < multi_size; i++) {
                 sprintf(keys[i], "%d", i);
               }
-                
-              for (int vs_idx = 0; vs_idx < value_sizes.size(); vs_idx++) {
-                uint32_t value_size = value_sizes[vs_idx];
-                printf("Multiread Test: server_size: %d, multi_size: %d, key_size: %dB, value_size: %dB\n", server_size, multi_size, key_size, value_size);
 
-                // Write value_size data into objects.
-                for (int i = 0; i < multi_size; i++) {
-                  char randomValue[value_size];
-                  client.write(tableId, keys[i], key_size, randomValue, value_size);
-                }
+              // Write value_size data into objects.
+              for (int i = 0; i < multi_size; i++) {
+                char randomValue[value_size];
+                client.write(tableId, keys[i], key_size, randomValue, value_size);
+              }
 
-                // Prepare multiread data structures.
-                MultiReadObject requestObjects[multi_size];
-                MultiReadObject* requests[multi_size];
-                Tub<ObjectBuffer> values[multi_size];
+              // Prepare multiread data structures.
+              MultiReadObject requestObjects[multi_size];
+              MultiReadObject* requests[multi_size];
+              Tub<ObjectBuffer> values[multi_size];
 
-                for (int i = 0; i < multi_size; i++) {
-                  requestObjects[i] = MultiReadObject(tableId, keys[i], 
-                      key_size, &values[i]);
-                  requests[i] = &requestObjects[i];
-                }
+              for (int i = 0; i < multi_size; i++) {
+                requestObjects[i] = MultiReadObject(tableId, keys[i], 
+                    key_size, &values[i]);
+                requests[i] = &requestObjects[i];
+              }
 
-                uint64_t latency[samples_per_point];
-                for (int i = 0; i < samples_per_point; i++) {
-                  uint64_t start = Cycles::rdtsc();
-                  client.multiRead(requests, multi_size);
-                  uint64_t end = Cycles::rdtsc();
-                  latency[i] = Cycles::toNanoseconds(end-start);
-                }
+              uint64_t latency[samples_per_point];
+              for (int i = 0; i < samples_per_point; i++) {
+                uint64_t start = Cycles::rdtsc();
+                client.multiRead(requests, multi_size);
+                uint64_t end = Cycles::rdtsc();
+                latency[i] = Cycles::toNanoseconds(end-start);
+              }
 
-                std::vector<uint64_t> latencyVec(latency, latency+samples_per_point);
+              std::vector<uint64_t> latencyVec(latency, latency+samples_per_point);
 
-                std::sort(latencyVec.begin(), latencyVec.end());
+              std::sort(latencyVec.begin(), latencyVec.end());
 
-                uint64_t sum = 0;
-                for (int i = 0; i < samples_per_point; i++) {
-                  sum += latencyVec[i];
-                }
+              uint64_t sum = 0;
+              for (int i = 0; i < samples_per_point; i++) {
+                sum += latencyVec[i];
+              }
 
-                fprintf(datFile, "%12d %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f\n", 
-                    value_size,
-                    latencyVec[samples_per_point*1/100]/1000.0,
-                    latencyVec[samples_per_point*2/100]/1000.0,
-                    latencyVec[samples_per_point*5/100]/1000.0,
-                    latencyVec[samples_per_point*10/100]/1000.0,
-                    latencyVec[samples_per_point*25/100]/1000.0,
-                    latencyVec[samples_per_point*50/100]/1000.0,
-                    latencyVec[samples_per_point*75/100]/1000.0,
-                    latencyVec[samples_per_point*90/100]/1000.0,
-                    latencyVec[samples_per_point*95/100]/1000.0,
-                    latencyVec[samples_per_point*98/100]/1000.0,
-                    latencyVec[samples_per_point*99/100]/1000.0);
-              } // vs_idx
+              fprintf(datFile, "%12d %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f %12.1f\n", 
+                  multi_size,
+                  latencyVec[samples_per_point*1/100]/1000.0,
+                  latencyVec[samples_per_point*2/100]/1000.0,
+                  latencyVec[samples_per_point*5/100]/1000.0,
+                  latencyVec[samples_per_point*10/100]/1000.0,
+                  latencyVec[samples_per_point*25/100]/1000.0,
+                  latencyVec[samples_per_point*50/100]/1000.0,
+                  latencyVec[samples_per_point*75/100]/1000.0,
+                  latencyVec[samples_per_point*90/100]/1000.0,
+                  latencyVec[samples_per_point*95/100]/1000.0,
+                  latencyVec[samples_per_point*98/100]/1000.0,
+                  latencyVec[samples_per_point*99/100]/1000.0);
+            } // ms_idx
 
-              fclose(datFile);
-            } // ks_idx
-          } // ms_idx
+            fclose(datFile);
+          } // dss_idx
 
           client.dropTable("test");
         } // sv_idx
