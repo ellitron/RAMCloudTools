@@ -396,6 +396,7 @@ try
                 latencyVec[samples_per_point*95/100]/1000.0,
                 latencyVec[samples_per_point*98/100]/1000.0,
                 latencyVec[samples_per_point*99/100]/1000.0);
+            fflush(datFile);
           }
 
           fclose(datFile);
@@ -467,6 +468,7 @@ try
                 latencyVec[samples_per_point*95/100]/1000.0,
                 latencyVec[samples_per_point*98/100]/1000.0,
                 latencyVec[samples_per_point*99/100]/1000.0);
+            fflush(datFile);
           }
 
           fclose(datFile);
@@ -562,6 +564,7 @@ try
                     latencyVec[samples_per_point*95/100]/1000.0,
                     latencyVec[samples_per_point*98/100]/1000.0,
                     latencyVec[samples_per_point*99/100]/1000.0);
+                fflush(datFile);
               } // vs_idx
 
               fclose(datFile);
@@ -661,6 +664,7 @@ try
                   latencyVec[samples_per_point*95/100]/1000.0,
                   latencyVec[samples_per_point*98/100]/1000.0,
                   latencyVec[samples_per_point*99/100]/1000.0);
+              fflush(datFile);
             } // ms_idx
 
             fclose(datFile);
