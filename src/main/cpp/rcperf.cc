@@ -339,7 +339,7 @@ try
           // Open data file for writing.
           FILE * datFile;
           char filename[128];
-          sprintf(filename, "read.spp_%d.ks_%d.dat", samples_per_point, key_size);
+          sprintf(filename, "read.spp_%d.ks_%d.csv", samples_per_point, key_size);
           datFile = fopen(filename, "w");
           fprintf(datFile, "%12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s\n", 
               "ValueSize",
@@ -411,7 +411,7 @@ try
           // Open data file for writing.
           FILE * datFile;
           char filename[128];
-          sprintf(filename, "write.spp_%d.rf_%d.ks_%d.dat", samples_per_point, replicas, key_size);
+          sprintf(filename, "write.spp_%d.rf_%d.ks_%d.csv", samples_per_point, replicas, key_size);
           datFile = fopen(filename, "w");
           fprintf(datFile, "%12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s\n", 
               "ValueSize",
@@ -488,7 +488,7 @@ try
               // Open data file for writing.
               FILE * datFile;
               char filename[128];
-              sprintf(filename, "multiread.spp_%d.sv_%d.mrs_%d.ks_%d.dat", samples_per_point, server_size, multi_size, key_size);
+              sprintf(filename, "multiread.spp_%d.sv_%d.mrs_%d.ks_%d.csv", samples_per_point, server_size, multi_size, key_size);
               datFile = fopen(filename, "w");
               fprintf(datFile, "%12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s\n", 
                   "ValueSize",
@@ -582,7 +582,7 @@ try
             // Open data file for writing.
             FILE * datFile;
             char filename[128];
-            sprintf(filename, "multiread_fixeddss.spp_%d.sv_%d.dss_%d.dat", samples_per_point, server_size, dss_size);
+            sprintf(filename, "multiread_fixeddss.spp_%d.sv_%d.dss_%d.csv", samples_per_point, server_size, dss_size);
             datFile = fopen(filename, "w");
             fprintf(datFile, "%12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s %12s\n", 
                 "MultiSize",
