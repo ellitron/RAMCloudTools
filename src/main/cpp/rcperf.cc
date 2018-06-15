@@ -86,8 +86,8 @@ try
     if (locator.size() == 0) {
         locator = optionParser.options.getCoordinatorLocator();
     }
-    RamCloud client(&context, locator.c_str(),
-            optionParser.options.getClusterName().c_str());
+
+    RamCloud client(&optionParser.options);
 
     // Default values for experiment parameters
     uint32_t key_range_start = 30;
