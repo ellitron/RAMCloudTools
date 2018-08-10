@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <istream>
 
 #include "ClusterMetrics.h"
 #include "Context.h"
@@ -53,6 +54,7 @@ int
 main(int argc, char *argv[])
 try
 {
+  string inputFile;
   uint64_t tableId;
   uint64_t serverSpan;
   string outputDir;
@@ -67,6 +69,9 @@ try
   OptionsDescription clientOptions("ImageFileHashPartitioner");
   clientOptions.add_options()
 
+    ("inputFile",
+     ProgramOptions::value<string>(&inputFile),
+     "Input file for hash partitioning. If '-' then takes input from stdin.")
     ("tableId",
      ProgramOptions::value<uint64_t>(&tableId),
      "TableId this table will have when loaded into RAMCloud.")
@@ -79,8 +84,9 @@ try
   
   OptionParser optionParser(clientOptions, argc, argv);
 
-  printf("ImageFileHashPartitioner: {tableId: %lu, serverSpan: %lu, "
-      "outputDir: %s}\n", tableId, serverSpan, outputDir.c_str());
+  printf("ImageFileHashPartitioner: {inputFile: %s, tableId: %lu, "
+      "serverSpan: %lu, outputDir: %s}\n", inputFile.c_str(), tableId, 
+      serverSpan, outputDir.c_str());
 
   // Calculate the hash range for each tablet and open tablet image files.
   uint64_t endKeyHashes[serverSpan];
@@ -95,43 +101,86 @@ try
     endKeyHashes[i] = endKeyHash;
 
     char *outFileName;
-    asprintf(&outFileName, (outputDir + 
-          "/tablet%04d(tableId:%lu,range:0x%016lx-0x%016lx).img").c_str(), 
-        i + 1, tableId, startKeyHash, endKeyHash); 
+    if (inputFile.compare("-") == 0 || inputFile.empty()) {
+      asprintf(&outFileName, (outputDir + 
+            "/tablet%d(tableId:%lu,range:0x%016lx-0x%016lx).img").c_str(), 
+          i + 1, tableId, startKeyHash, endKeyHash); 
+    } else {
+      string fileName = inputFile.substr(inputFile.find_last_of("/")+1);
+      asprintf(&outFileName, (outputDir + 
+            "/%s.tablet%d(tableId:%lu,range:0x%016lx-0x%016lx).img").c_str(), 
+          fileName.substr(0,fileName.find(".img")).c_str(),
+          i + 1, tableId, startKeyHash, endKeyHash); 
+    }
     outFiles[i].open(outFileName, std::ios::binary);
     printf("Creating %s ...\n", outFileName);
     free(outFileName);
   }
 
-  uint64_t totalBytesProcessed = 0;
-  char lenBuffer[sizeof(uint32_t)];
-  while(std::cin.read(lenBuffer, sizeof(lenBuffer))) {
-    uint32_t keyLength = *((uint32_t*) lenBuffer); 
-    char keyBuffer[keyLength];
-    std::cin.read(keyBuffer, keyLength);
-    
-    std::cin.read(lenBuffer, sizeof(lenBuffer));
-    uint32_t dataLength = *((uint32_t*) lenBuffer);
-    char dataBuffer[dataLength];
-    std::cin.read(dataBuffer, dataLength);
+  if (inputFile.compare("-") == 0) {
+    uint64_t totalBytesProcessed = 0;
+    char lenBuffer[sizeof(uint32_t)];
+    while(std::cin.read(lenBuffer, sizeof(lenBuffer))) {
+      uint32_t keyLength = *((uint32_t*) lenBuffer); 
+      char keyBuffer[keyLength];
+      std::cin.read(keyBuffer, keyLength);
+      
+      std::cin.read(lenBuffer, sizeof(lenBuffer));
+      uint32_t dataLength = *((uint32_t*) lenBuffer);
+      char dataBuffer[dataLength];
+      std::cin.read(dataBuffer, dataLength);
 
-    uint64_t keyHash = Key::getHash(tableId, (const void*)keyBuffer, 
-        (uint16_t)keyLength);
+      uint64_t keyHash = Key::getHash(tableId, (const void*)keyBuffer, 
+          (uint16_t)keyLength);
 
-    uint64_t tablet = 0;
-    for (uint32_t i = 0; i < serverSpan; i++) {
-      if (keyHash <= endKeyHashes[i]) {
-        tablet = i;
-        break;
+      uint64_t tablet = 0;
+      for (uint32_t i = 0; i < serverSpan; i++) {
+        if (keyHash <= endKeyHashes[i]) {
+          tablet = i;
+          break;
+        }
       }
+
+      outFiles[tablet].write((char*) &keyLength, sizeof(uint32_t));
+      outFiles[tablet].write((char*) keyBuffer, keyLength);
+      outFiles[tablet].write((char*) &dataLength, sizeof(uint32_t));
+      outFiles[tablet].write((char*) dataBuffer, dataLength);
+
+      totalBytesProcessed += sizeof(uint32_t) * 2 + keyLength + dataLength;
     }
+  } else {
+    std::ifstream infile(inputFile);
 
-    outFiles[tablet].write((char*) &keyLength, sizeof(uint32_t));
-    outFiles[tablet].write((char*) keyBuffer, keyLength);
-    outFiles[tablet].write((char*) &dataLength, sizeof(uint32_t));
-    outFiles[tablet].write((char*) dataBuffer, dataLength);
+    uint64_t totalBytesProcessed = 0;
+    char lenBuffer[sizeof(uint32_t)];
+    while(infile.read(lenBuffer, sizeof(lenBuffer))) {
+      uint32_t keyLength = *((uint32_t*) lenBuffer); 
+      char keyBuffer[keyLength];
+      infile.read(keyBuffer, keyLength);
+      
+      infile.read(lenBuffer, sizeof(lenBuffer));
+      uint32_t dataLength = *((uint32_t*) lenBuffer);
+      char dataBuffer[dataLength];
+      infile.read(dataBuffer, dataLength);
 
-    totalBytesProcessed += sizeof(uint32_t) * 2 + keyLength + dataLength;
+      uint64_t keyHash = Key::getHash(tableId, (const void*)keyBuffer, 
+          (uint16_t)keyLength);
+
+      uint64_t tablet = 0;
+      for (uint32_t i = 0; i < serverSpan; i++) {
+        if (keyHash <= endKeyHashes[i]) {
+          tablet = i;
+          break;
+        }
+      }
+
+      outFiles[tablet].write((char*) &keyLength, sizeof(uint32_t));
+      outFiles[tablet].write((char*) keyBuffer, keyLength);
+      outFiles[tablet].write((char*) &dataLength, sizeof(uint32_t));
+      outFiles[tablet].write((char*) dataBuffer, dataLength);
+
+      totalBytesProcessed += sizeof(uint32_t) * 2 + keyLength + dataLength;
+    }
   }
 
   for (uint32_t i = 0; i < serverSpan; i++) {
