@@ -497,7 +497,7 @@ try
 
       threadLoadOffset += loadOffset;
 
-      clients[i] = new RamCloud(locator.c_str());
+      clients[i] = new RamCloud(&optionParser.options);
 
       threads.emplace_back(fileLoaderThread, clients[i], serverSpan, fileList,
           snapshotDir, tableNameSuffix, threadLoadOffset, threadLoadSize, 
@@ -523,7 +523,7 @@ try
     }
   } else {
     // In this case we will read from stdin.
-    RamCloud client(locator.c_str());
+    RamCloud client(&optionParser.options);
     ThreadStats stats;
   
     std::thread statsReporter(statsReporterThread, (struct ThreadStats*)&stats, 
