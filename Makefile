@@ -16,7 +16,8 @@ TARGETS :=  TableDownloader \
 	    rcperf \
             TableImageSplitter \
 	    ImageFileHashPartitioner \
-	    ImageFileStats
+	    ImageFileStats \
+	    TableCreator
 
 all: $(TARGETS)
 
