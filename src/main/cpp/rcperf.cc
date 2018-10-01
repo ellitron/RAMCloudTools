@@ -512,26 +512,35 @@ try
                 printf("Multiread Test: server_size: %d, multi_size: %d, key_size: %dB, value_size: %dB\n", server_size, multi_size, key_size, value_size);
 
                 // Construct keys.
-                char keys[multi_size][key_size];
+//                char keys[multi_size][key_size];
+//                char* keys = new char[multi_size][key_size];
+                char* keys = (char*)malloc(multi_size*key_size);
                 memset(keys, 0, multi_size * key_size);
                 for (int i = 0; i < multi_size; i++) {
-                  sprintf(keys[i], "%d", i);
+                  sprintf(&keys[i*key_size], "%d", i);
                 }
 
                 // Write value_size data into objects.
                 for (int i = 0; i < multi_size; i++) {
                   char randomValue[value_size];
-                  client.write(tableId, keys[i], key_size, randomValue, value_size);
+                  client.write(tableId, &keys[i*key_size], key_size, randomValue, value_size);
                 }
+
+                Tub<Transaction::ReadOp>* readOps = new Tub<Transaction::ReadOp>[multi_size];
+                Buffer* values = new Buffer[multi_size];
 
                 uint64_t latency[samples_per_point];
                 for (int i = 0; i < samples_per_point; i++) {
                   Transaction tx(&client);
 
-                  Tub<Transaction::ReadOp> readOps[multi_size];
-                  Buffer values[multi_size];
+
+                  if (readOps == NULL) {
+                    printf("Could not allocate enough memory for readOps\n");
+                    exit(1);
+                  }
+
                   for (int j = 0; j < multi_size; j++) {
-                    readOps[j].construct(&tx, tableId, (const char*)keys[j], key_size, &values[j], true);
+                    readOps[j].construct(&tx, tableId, (const char*)&keys[j*key_size], key_size, &values[j], true);
                   }
 
                   uint64_t start = Cycles::rdtsc();
@@ -540,7 +549,12 @@ try
                   }
                   uint64_t end = Cycles::rdtsc();
                   latency[i] = Cycles::toNanoseconds(end-start);
+
                 }
+
+                delete [] readOps;
+                delete [] values;
+                delete [] keys;
 
                 std::vector<uint64_t> latencyVec(latency, latency+samples_per_point);
 
