@@ -529,27 +529,34 @@ try
                 Tub<Transaction::ReadOp>* readOps = new Tub<Transaction::ReadOp>[multi_size];
                 Buffer* values = new Buffer[multi_size];
 
+                if (readOps == NULL) {
+                  printf("Could not allocate enough memory for readOps\n");
+                  exit(1);
+                }
+
                 uint64_t latency[samples_per_point];
                 for (int i = 0; i < samples_per_point; i++) {
                   Transaction tx(&client);
 
-
-                  if (readOps == NULL) {
-                    printf("Could not allocate enough memory for readOps\n");
-                    exit(1);
-                  }
-
+                  uint64_t start = Cycles::rdtsc();
                   for (int j = 0; j < multi_size; j++) {
                     readOps[j].construct(&tx, tableId, (const char*)&keys[j*key_size], key_size, &values[j], true);
+//                    if ((j+1) % 1000 == 0) {
+//                      uint64_t start1 = Cycles::rdtsc();
+//                      for (int k = (j+1) - 1000; k < (j+1); k++) {
+//                        readOps[k]->wait();
+//                      }
+//                      uint64_t end1 = Cycles::rdtsc();
+//                      printf("Batch(j=%09d) latency: %12.1fus\n", j, Cycles::toNanoseconds(end1-start1)/1000.0);
+//                    }
                   }
 
-                  uint64_t start = Cycles::rdtsc();
                   for (int j = 0; j < multi_size; j++) {
                     readOps[j]->wait();
                   }
                   uint64_t end = Cycles::rdtsc();
-                  latency[i] = Cycles::toNanoseconds(end-start);
 
+                  latency[i] = Cycles::toNanoseconds(end-start);
                 }
 
                 delete [] readOps;
