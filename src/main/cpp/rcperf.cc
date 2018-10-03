@@ -511,40 +511,37 @@ try
                 uint32_t multi_size = multi_sizes[ms_idx];
                 printf("Multiread Test: server_size: %d, multi_size: %d, key_size: %dB, value_size: %dB\n", server_size, multi_size, key_size, value_size);
 
-                // Construct keys.
-                char keys[multi_size][key_size];
-                memset(keys, 0, multi_size * key_size);
-                for (int i = 0; i < multi_size; i++) {
-                  sprintf(keys[i], "%d", i);
-                }
+                char key[key_size];
+                memset(key, 0, key_size);
 
                 // Write value_size data into objects.
                 for (int i = 0; i < multi_size; i++) {
+                  memcpy(key, (char*)&i, sizeof(int));
                   char randomValue[value_size];
-                  client.write(tableId, keys[i], key_size, randomValue, value_size);
+                  client.write(tableId, key, key_size, randomValue, value_size);
                 }
 
                 uint64_t latency[samples_per_point];
                 for (int i = 0; i < samples_per_point; i++) {
                   Transaction tx(&client);
 
-                  Tub<Transaction::ReadOp> readOps[multi_size];
-                  Buffer values[multi_size];
+                  int READOP_POOL_SIZE = 128;
+                  Tub<Transaction::ReadOp> readOps[READOP_POOL_SIZE];
+                  Buffer values[READOP_POOL_SIZE];
                   
                   uint64_t start = Cycles::rdtsc();
                   for (int j = 0; j < multi_size; j++) {
-                    readOps[j].construct(&tx, tableId, (const char*)keys[j], key_size, &values[j], true);
-//                    if ((j+1) % 1000 == 0) {
-//                      uint64_t start1 = Cycles::rdtsc();
-//                      for (int k = (j+1) - 1000; k < (j+1); k++) {
-//                        readOps[k]->wait();
-//                      }
-//                      uint64_t end1 = Cycles::rdtsc();
-//                      printf("Batch(j=%09d) latency: %12.1fus\n", j, Cycles::toNanoseconds(end1-start1)/1000.0);
-//                    }
+                    memcpy(key, (char*)&j, sizeof(int));
+                    readOps[j % READOP_POOL_SIZE].construct(&tx, tableId, (const char*)key, key_size, &values[j % READOP_POOL_SIZE], true);
+
+                    if ((j + 1) % READOP_POOL_SIZE == 0) {
+                      for (int k = 0; k < READOP_POOL_SIZE; k++) {
+                        readOps[k]->wait();
+                      }
+                    }
                   }
 
-                  for (int j = 0; j < multi_size; j++) {
+                  for (int j = 0; j < (multi_size % READOP_POOL_SIZE); j++) {
                     readOps[j]->wait();
                   }
                   uint64_t end = Cycles::rdtsc();
