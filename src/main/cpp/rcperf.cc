@@ -35,6 +35,7 @@
 #include "IndexLookup.h"
 #include "TableEnumerator.h"
 #include "Transaction.h"
+#include "TimeTrace.h"
 
 using namespace RAMCloud;
 
@@ -521,19 +522,19 @@ try
                   client.write(tableId, key, key_size, randomValue, value_size);
                 }
 
+                int READOP_POOL_SIZE = 100;
+                Tub<Transaction::ReadOp> readOps[READOP_POOL_SIZE];
+                Buffer values[READOP_POOL_SIZE];
+
                 uint64_t latency[samples_per_point];
                 for (int i = 0; i < samples_per_point; i++) {
                   Transaction tx(&client);
-
-                  int READOP_POOL_SIZE = 128;
-                  Tub<Transaction::ReadOp> readOps[READOP_POOL_SIZE];
-                  Buffer values[READOP_POOL_SIZE];
                   
                   uint64_t start = Cycles::rdtsc();
                   for (int j = 0; j < multi_size; j++) {
                     memcpy(key, (char*)&j, sizeof(int));
                     readOps[j % READOP_POOL_SIZE].construct(&tx, tableId, (const char*)key, key_size, &values[j % READOP_POOL_SIZE], true);
-
+      
                     if ((j + 1) % READOP_POOL_SIZE == 0) {
                       for (int k = 0; k < READOP_POOL_SIZE; k++) {
                         readOps[k]->wait();
