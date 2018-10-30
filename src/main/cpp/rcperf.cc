@@ -35,7 +35,6 @@
 #include "IndexLookup.h"
 #include "TableEnumerator.h"
 #include "Transaction.h"
-#include "TimeTrace.h"
 
 using namespace RAMCloud;
 
@@ -587,6 +586,18 @@ try
 
           uint64_t tableId = client.createTable("test", server_size);
 
+          // Calculate hash ranges.
+          uint64_t endKeyHashes[server_size];
+          uint64_t tabletRange = 1 + ~0UL / server_size;
+          for (uint32_t i = 0; i < server_size; i++) {
+            uint64_t startKeyHash = i * tabletRange;
+            uint64_t endKeyHash = startKeyHash + tabletRange - 1;
+            if (i == (server_size - 1))
+              endKeyHash = ~0UL;
+
+            endKeyHashes[i] = endKeyHash;
+          }
+
           for (int ms_idx = 0; ms_idx < multi_sizes.size(); ms_idx++) {
             uint32_t multi_size = multi_sizes[ms_idx];
 
@@ -615,10 +626,29 @@ try
               // Construct keys.
               char keys[multi_size][key_size];
               memset(keys, 0, multi_size * key_size);
-              for (int i = 0; i < multi_size; i++) {
-                sprintf(keys[i], "%d", i);
-              }
+              uint32_t key_candidate = 0;
+              uint32_t n = 0;
+              while (n < multi_size) {
+                sprintf(keys[n], "%d", key_candidate);
+
+                // Find the tablet this key belongs to.
+                uint64_t keyHash = Key::getHash(tableId, (const void*)keys[n],
+                    (uint16_t)key_size);
+                uint64_t tablet = 0;
+                for (uint32_t j = 0; j < server_size; j++) {
+                  if (keyHash <= endKeyHashes[j]) {
+                    tablet = j;
+                    break;
+                  }
+                }
                 
+                if (tablet == n % server_size) {
+                  n++;
+                }
+
+                key_candidate++;
+              }
+
               for (int vs_idx = 0; vs_idx < value_sizes.size(); vs_idx++) {
                 uint32_t value_size = value_sizes[vs_idx];
                 printf("Multiread Test: server_size: %d, multi_size: %d, key_size: %dB, value_size: %dB\n", server_size, multi_size, key_size, value_size);
@@ -685,6 +715,18 @@ try
 
           uint64_t tableId = client.createTable("test", server_size);
 
+          // Calculate hash ranges.
+          uint64_t endKeyHashes[server_size];
+          uint64_t tabletRange = 1 + ~0UL / server_size;
+          for (uint32_t i = 0; i < server_size; i++) {
+            uint64_t startKeyHash = i * tabletRange;
+            uint64_t endKeyHash = startKeyHash + tabletRange - 1;
+            if (i == (server_size - 1))
+              endKeyHash = ~0UL;
+
+            endKeyHashes[i] = endKeyHash;
+          }
+
           for (int dss_idx = 0; dss_idx < dss_sizes.size(); dss_idx++) {
             uint32_t dss_size = dss_sizes[dss_idx];
 
@@ -719,8 +761,27 @@ try
               // Construct keys.
               char keys[multi_size][key_size];
               memset(keys, 0, multi_size * key_size);
-              for (int i = 0; i < multi_size; i++) {
-                sprintf(keys[i], "%d", i);
+              uint32_t key_candidate = 0;
+              uint32_t n = 0;
+              while (n < multi_size) {
+                sprintf(keys[n], "%d", key_candidate);
+
+                // Find the tablet this key belongs to.
+                uint64_t keyHash = Key::getHash(tableId, (const void*)keys[n],
+                    (uint16_t)key_size);
+                uint64_t tablet = 0;
+                for (uint32_t j = 0; j < server_size; j++) {
+                  if (keyHash <= endKeyHashes[j]) {
+                    tablet = j;
+                    break;
+                  }
+                }
+
+                if (tablet == n % server_size) {
+                  n++;
+                }
+
+                key_candidate++;
               }
 
               // Write value_size data into objects.
