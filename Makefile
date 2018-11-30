@@ -1,4 +1,4 @@
-RAMCLOUD_OBJ_DIR := $(RAMCLOUD_HOME)/obj.nanolog-integration
+RAMCLOUD_OBJ_DIR := $(RAMCLOUD_HOME)/obj.rdwr-nanologging
 
 TARGETS :=  TableDownloader \
             TableUploader \
